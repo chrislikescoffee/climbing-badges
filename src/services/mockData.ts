@@ -1,4 +1,4 @@
-import type { Badge, UserProfile } from '../types';
+import type { Badge, UserProfile, CommitteeEvictionRequest } from '../types';
 
 export const INITIAL_BADGES: Badge[] = [
   {
@@ -156,6 +156,7 @@ export const MOCK_USERS: UserProfile[] = [
     displayName: 'Chris "Granite" H.',
     avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Chris',
     role: 'admin',
+    status: 'active',
     createdAt: Date.now() - 20000000
   },
   {
@@ -164,6 +165,7 @@ export const MOCK_USERS: UserProfile[] = [
     displayName: 'Sam "BelaySlave" P.',
     avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Sam',
     role: 'committee',
+    status: 'active',
     createdAt: Date.now() - 18000000
   },
   {
@@ -172,6 +174,7 @@ export const MOCK_USERS: UserProfile[] = [
     displayName: 'Alex "ChalkBag" D.',
     avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex',
     role: 'committee',
+    status: 'active',
     createdAt: Date.now() - 15000000
   },
   {
@@ -180,6 +183,30 @@ export const MOCK_USERS: UserProfile[] = [
     displayName: 'Taylor "CampChef" W.',
     avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Taylor',
     role: 'member',
+    status: 'active',
     createdAt: Date.now() - 10000000
+  },
+  {
+    uid: 'user-jordan',
+    email: 'jordan@example.com',
+    displayName: 'Jordan "Whipper" K.',
+    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Jordan',
+    role: 'member',
+    status: 'active',
+    createdAt: Date.now() - 8000000
+  }
+];
+
+export const INITIAL_EVICTION_REQUESTS: CommitteeEvictionRequest[] = [
+  {
+    id: 'evict-req-1',
+    targetUserId: 'user-alex',
+    targetDisplayName: 'Alex "ChalkBag" D.',
+    targetEmail: 'alex@example.com',
+    requestedByUserId: 'user-sam',
+    requestedByDisplayName: 'Sam "BelaySlave" P.',
+    reason: 'Has not attended committee vote meetings in 6 months.',
+    status: 'pending',
+    createdAt: Date.now() - 86400000
   }
 ];

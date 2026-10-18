@@ -1,28 +1,32 @@
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/common/Navbar';
+import type { TabKey } from './components/common/Navbar';
 import { BadgeCard } from './components/badges/BadgeCard';
 import { BadgeDetailModal } from './components/badges/BadgeDetailModal';
 import { PatchJacket } from './components/badges/PatchJacket';
 import { ShareCardModal } from './components/badges/ShareCardModal';
 import { ReviewQueue } from './components/committee/ReviewQueue';
 import { NominateModal } from './components/nominations/NominateModal';
+import { BadgeManagement } from './components/management/BadgeManagement';
+import { UserManagement } from './components/management/UserManagement';
 
-import { INITIAL_BADGES, MOCK_USERS } from './services/mockData';
-import type { Badge, UserBadgeProgress, UserProfile, Nomination } from './types';
+import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS } from './services/mockData';
+import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest } from './types';
 import { addQueueItem, getQueueItems } from './services/offlineQueue';
 import { sounds } from './services/audio';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'badges' | 'reviews' | 'jacket' | 'profile'>('badges');
+  const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(0);
 
   const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(MOCK_USERS[0]);
 
-  const [badges] = useState<Badge[]>(INITIAL_BADGES);
+  const [badges, setBadges] = useState<Badge[]>(INITIAL_BADGES);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [evictionRequests, setEvictionRequests] = useState<CommitteeEvictionRequest[]>(INITIAL_EVICTION_REQUESTS);
 
   const [userProgress, setUserProgress] = useState<Record<string, UserBadgeProgress>>({
     'early-riser': {
@@ -72,6 +76,8 @@ export function App() {
   const [showCallsignModal, setShowCallsignModal] = useState<boolean>(false);
   const [customCallsign, setCustomCallsign] = useState<string>('');
 
+  const isCommittee = currentUser?.role === 'admin' || currentUser?.role === 'committee';
+
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
@@ -86,6 +92,82 @@ export function App() {
     };
   }, []);
 
+  // Badge Management Handlers
+  const handleSaveBadge = (badge: Badge) => {
+    setBadges(prev => {
+      const exists = prev.some(b => b.id === badge.id);
+      if (exists) {
+        return prev.map(b => b.id === badge.id ? badge : b);
+      }
+      return [badge, ...prev];
+    });
+  };
+
+  const handleDeleteBadge = (badgeId: string) => {
+    setBadges(prev => prev.filter(b => b.id !== badgeId));
+  };
+
+  const handleToggleActiveBadge = (badgeId: string) => {
+    setBadges(prev => prev.map(b => b.id === badgeId ? { ...b, isActive: !b.isActive } : b));
+  };
+
+  // User Management Handlers
+  const handlePromoteToCommittee = (userId: string) => {
+    setUsers(prev => prev.map(u => u.uid === userId ? { ...u, role: 'committee' } : u));
+    alert('User promoted to Committee!');
+  };
+
+  const handleRequestEvictFromCommittee = (targetUser: UserProfile, reason: string) => {
+    if (!currentUser) return;
+    const newReq: CommitteeEvictionRequest = {
+      id: 'evict_' + Date.now(),
+      targetUserId: targetUser.uid,
+      targetDisplayName: targetUser.displayName,
+      targetEmail: targetUser.email,
+      requestedByUserId: currentUser.uid,
+      requestedByDisplayName: currentUser.displayName,
+      reason,
+      status: 'pending',
+      createdAt: Date.now()
+    };
+    setEvictionRequests(prev => [newReq, ...prev]);
+    alert('Eviction request created. A second Committee member must approve to complete the removal.');
+  };
+
+  const handleApproveEvictionFromCommittee = (requestId: string) => {
+    if (!currentUser) return;
+    const req = evictionRequests.find(r => r.id === requestId);
+    if (!req) return;
+
+    // Demote user to member
+    setUsers(prev => prev.map(u => u.uid === req.targetUserId ? { ...u, role: 'member' } : u));
+
+    // Mark request approved
+    setEvictionRequests(prev => prev.map(r => r.id === requestId ? {
+      ...r,
+      status: 'approved',
+      resolvedAt: Date.now(),
+      resolvedByUserId: currentUser.uid,
+      resolvedByDisplayName: currentUser.displayName
+    } : r));
+
+    sounds.playFanfare();
+    alert(`Confirmed: ${req.targetDisplayName} has been removed from Committee (2nd approval verified).`);
+  };
+
+  const handleRejectEvictionFromCommittee = (requestId: string) => {
+    setEvictionRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected', resolvedAt: Date.now() } : r));
+  };
+
+  const handleEvictFromClub = (userId: string) => {
+    setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'evicted' } : u));
+  };
+
+  const handleReinstateToClub = (userId: string) => {
+    setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'active' } : u));
+  };
+
+  // Progress Logging
   const handleLogEvidence = async (
     badgeId: string,
     requirementId: string,
@@ -249,6 +331,7 @@ export function App() {
   });
 
   const committeeMembers = users.filter(u => u.role === 'committee' || u.role === 'admin');
+  const pendingEvictions = evictionRequests.filter(r => r.status === 'pending');
 
   return (
     <div style={{ minHeight: '100vh', padding: '16px' }}>
@@ -260,13 +343,15 @@ export function App() {
         isOnline={isOnline}
         pendingOfflineCount={pendingOfflineCount}
         pendingReviewsCount={nominations.filter(n => n.status === 'pending').length}
+        pendingEvictionsCount={pendingEvictions.length}
       />
 
-      <main style={{ maxWidth: 1200, margin: '0 auto' }}>
+      <main style={{ maxWidth: 1280, margin: '0 auto' }}>
+        {/* Tab 1: Badges Explore */}
         {activeTab === 'badges' && (
           <div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto', paddingBottom: 6 }}>
-              {['all', 'climbing', 'camping', 'banter'].map(cat => (
+              {['all', 'climbing', 'camping', 'banter', 'milestone'].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -311,6 +396,7 @@ export function App() {
           </div>
         )}
 
+        {/* Tab 2: Reviews & Votes */}
         {activeTab === 'reviews' && (
           <ReviewQueue
             nominations={nominations}
@@ -318,12 +404,16 @@ export function App() {
             committeeMembers={committeeMembers}
             currentUser={currentUser}
             onCastVote={handleCastVote}
-            onAddCommitteeMember={u => setUsers(prev => prev.map(usr => usr.uid === u.uid ? { ...usr, role: 'committee' } : usr))}
-            onRemoveCommitteeMember={uid => setUsers(prev => prev.map(usr => usr.uid === uid ? { ...usr, role: 'member' } : usr))}
+            onAddCommitteeMember={u => handlePromoteToCommittee(u.uid)}
+            onRemoveCommitteeMember={uid => {
+              const u = users.find(usr => usr.uid === uid);
+              if (u) handleRequestEvictFromCommittee(u, 'Removed from Committee via review screen');
+            }}
             allUsers={users}
           />
         )}
 
+        {/* Tab 3: Patch Jacket / Sash */}
         {activeTab === 'jacket' && currentUser && (
           <PatchJacket
             user={currentUser}
@@ -333,8 +423,48 @@ export function App() {
           />
         )}
 
+        {/* Tab 4: Badge Management (Admin & Committee only) */}
+        {activeTab === 'badge-mgmt' && (
+          isCommittee ? (
+            <BadgeManagement
+              badges={badges}
+              onSaveBadge={handleSaveBadge}
+              onDeleteBadge={handleDeleteBadge}
+              onToggleActive={handleToggleActiveBadge}
+            />
+          ) : (
+            <div className="glass-panel" style={{ padding: 40, textAlign: 'center' }}>
+              <h3 style={{ color: '#fff', marginBottom: 6 }}>Access Restricted</h3>
+              <p style={{ color: 'var(--text-muted)' }}>Badge Management is restricted to Committee & Admin members.</p>
+            </div>
+          )
+        )}
+
+        {/* Tab 5: User Management (Admin & Committee only) */}
+        {activeTab === 'user-mgmt' && currentUser && (
+          isCommittee ? (
+            <UserManagement
+              users={users}
+              currentUser={currentUser}
+              evictionRequests={evictionRequests}
+              onPromoteToCommittee={handlePromoteToCommittee}
+              onRequestEvictFromCommittee={handleRequestEvictFromCommittee}
+              onApproveEvictionFromCommittee={handleApproveEvictionFromCommittee}
+              onRejectEvictionFromCommittee={handleRejectEvictionFromCommittee}
+              onEvictFromClub={handleEvictFromClub}
+              onReinstateToClub={handleReinstateToClub}
+            />
+          ) : (
+            <div className="glass-panel" style={{ padding: 40, textAlign: 'center' }}>
+              <h3 style={{ color: '#fff', marginBottom: 6 }}>Access Restricted</h3>
+              <p style={{ color: 'var(--text-muted)' }}>User Management is restricted to Committee & Admin members.</p>
+            </div>
+          )
+        )}
+
+        {/* Tab 6: Profile / Callsign Switcher */}
         {activeTab === 'profile' && currentUser && (
-          <div className="glass-panel" style={{ maxWidth: 600, margin: '0 auto', padding: 32 }}>
+          <div className="glass-panel" style={{ maxWidth: 640, margin: '0 auto', padding: 32 }}>
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
               <img 
                 src={currentUser.avatarUrl} 
@@ -342,19 +472,33 @@ export function App() {
                 style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid var(--amber-campfire)', marginBottom: 12 }}
               />
               <h2 style={{ color: '#fff', fontSize: '1.4rem' }}>{currentUser.displayName}</h2>
-              <span style={{
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: 'var(--amber-campfire)',
-                background: 'rgba(255, 152, 0, 0.15)',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-full)'
-              }}>
-                Role: {currentUser.role}
-              </span>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6 }}>
+                <span style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: isCommittee ? 'var(--amber-campfire)' : 'var(--text-muted)',
+                  background: isCommittee ? 'rgba(255, 152, 0, 0.15)' : 'var(--bg-surface-elevated)',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-full)'
+                }}>
+                  Role: {currentUser.role}
+                </span>
+                <span style={{
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: currentUser.status === 'active' ? 'var(--emerald-moss)' : '#ff6b6b',
+                  background: currentUser.status === 'active' ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 0, 0, 0.15)',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--radius-full)'
+                }}>
+                  Status: {currentUser.status}
+                </span>
+              </div>
             </div>
 
+            {/* Quick Switcher for testing committee/member view */}
             <div style={{
               background: 'var(--bg-surface-elevated)',
               padding: 18,
@@ -362,7 +506,7 @@ export function App() {
               marginBottom: 20
             }}>
               <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-                Switch User (Testing Peer Nominations & Committee Votes)
+                Switch Active User (Test Committee vs. Member Permissions)
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {users.map(u => (

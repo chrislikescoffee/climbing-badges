@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'committee' | 'member';
+export type UserStatus = 'active' | 'evicted';
 
 export interface UserProfile {
   uid: string;
@@ -6,6 +7,7 @@ export interface UserProfile {
   displayName: string;
   avatarUrl: string;
   role: UserRole;
+  status: UserStatus;
   createdAt: number;
 }
 
@@ -79,6 +81,21 @@ export interface Nomination {
   createdAt: number;
   votes: Record<string, { vote: 'approve' | 'reject'; comment?: string; timestamp: number }>;
   requiredVotes: number;
+}
+
+export interface CommitteeEvictionRequest {
+  id: string;
+  targetUserId: string;
+  targetDisplayName: string;
+  targetEmail: string;
+  requestedByUserId: string;
+  requestedByDisplayName: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: number;
+  resolvedAt?: number;
+  resolvedByUserId?: string;
+  resolvedByDisplayName?: string;
 }
 
 export interface OfflineQueueItem {
