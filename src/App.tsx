@@ -139,10 +139,8 @@ export function App() {
     const req = evictionRequests.find(r => r.id === requestId);
     if (!req) return;
 
-    // Demote user to member
     setUsers(prev => prev.map(u => u.uid === req.targetUserId ? { ...u, role: 'member' } : u));
 
-    // Mark request approved
     setEvictionRequests(prev => prev.map(r => r.id === requestId ? {
       ...r,
       status: 'approved',
@@ -167,20 +165,26 @@ export function App() {
     setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'active' } : u));
   };
 
-  // Progress Logging
+  // Progress Logging with optional & mandatory photographs
   const handleLogEvidence = async (
     badgeId: string,
     requirementId: string,
     countDelta: number,
     text?: string,
-    photoFile?: File
+    mandatoryPhoto?: File,
+    optionalPhotos?: File[]
   ) => {
     if (!currentUser) return;
+
+    const photoNames = [
+      mandatoryPhoto ? mandatoryPhoto.name : null,
+      ...(optionalPhotos ? optionalPhotos.map(p => p.name) : [])
+    ].filter(Boolean);
 
     if (!isOnline) {
       await addQueueItem({
         type: 'log_evidence',
-        payload: { badgeId, requirementId, countDelta, text, photoName: photoFile?.name }
+        payload: { badgeId, requirementId, countDelta, text, photoNames }
       });
       const q = await getQueueItems();
       setPendingOfflineCount(q.length);
@@ -208,6 +212,9 @@ export function App() {
       const reqDef = targetBadge?.requirements.find(r => r.id === requirementId);
       const isReqDone = targetBadge ? newCount >= (reqDef?.targetCount || 1) : false;
 
+      const mockMandatoryUrl = mandatoryPhoto ? URL.createObjectURL(mandatoryPhoto) : undefined;
+      const mockOptionalUrls = optionalPhotos ? optionalPhotos.map(f => URL.createObjectURL(f)) : [];
+
       const updatedReqProg = {
         ...reqProg,
         currentCount: newCount,
@@ -219,6 +226,9 @@ export function App() {
             timestamp: Date.now(),
             countDelta,
             text,
+            mandatoryPhotoUrl: mockMandatoryUrl,
+            optionalPhotoUrls: mockOptionalUrls,
+            photoUrls: [mockMandatoryUrl, ...mockOptionalUrls].filter(Boolean) as string[],
             recordedBy: currentUser.displayName
           }
         ]
@@ -498,7 +508,6 @@ export function App() {
               </div>
             </div>
 
-            {/* Quick Switcher for testing committee/member view */}
             <div style={{
               background: 'var(--bg-surface-elevated)',
               padding: 18,

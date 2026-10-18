@@ -52,7 +52,7 @@ export const INITIAL_BADGES: Badge[] = [
         title: 'Clean in Adverse Circumstances',
         description: 'At least one clean performed in high wind, rain, dusk or awkward hanging stance.',
         targetCount: 1,
-        evidenceType: 'photo_and_text'
+        evidenceType: 'photo_mandatory'
       }
     ],
     createdBy: 'admin',
@@ -118,7 +118,7 @@ export const INITIAL_BADGES: Badge[] = [
         title: 'Single Match Fire',
         description: 'Sustain campfire for over 1 hour starting from only 1 match.',
         targetCount: 1,
-        evidenceType: 'photo'
+        evidenceType: 'photo_mandatory'
       }
     ],
     createdBy: 'admin',

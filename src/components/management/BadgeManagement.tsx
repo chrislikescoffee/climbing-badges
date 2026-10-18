@@ -42,7 +42,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
       title: 'Initial Requirement',
       description: 'Detail what must be achieved...',
       targetCount: 1,
-      evidenceType: 'photo_and_text'
+      evidenceType: 'checkbox'
     }
   ]);
 
@@ -175,7 +175,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
             Badge Management
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            Committee & Admin control panel: create badges, specify multi-part criteria, evidence types, and review mechanisms.
+            Committee & Admin control panel: configure badges, mandatory evidence, and optional supplementary photo rules.
           </p>
         </div>
 
@@ -333,7 +333,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
             className="glass-panel"
             style={{
               width: '100%',
-              maxWidth: 720,
+              maxWidth: 740,
               maxHeight: '90vh',
               overflowY: 'auto',
               background: 'var(--bg-surface)',
@@ -353,7 +353,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
               {isCreating ? 'Create New Badge' : `Edit "${editingBadge?.title}"`}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
-              Configure badge details, approval rules, and evidence criteria.
+              Configure badge details, approval rules, and evidence criteria. All criteria support optional photographs!
             </p>
 
             <form onSubmit={handleSubmit}>
@@ -475,9 +475,14 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 marginBottom: 20
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <h4 style={{ fontSize: '0.92rem', color: '#fff' }}>
-                    Criteria & Evidence Requirements ({requirements.length})
-                  </h4>
+                  <div>
+                    <h4 style={{ fontSize: '0.92rem', color: '#fff' }}>
+                      Criteria & Evidence Requirements ({requirements.length})
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Users can always attach optional photos along with any requirement.
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={handleAddRequirement}
@@ -544,16 +549,16 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                           />
                         </div>
                         <div>
-                          <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: 2 }}>Evidence Required</label>
+                          <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: 2 }}>Mandatory Evidence Type</label>
                           <select
                             value={req.evidenceType}
                             onChange={e => handleReqChange(idx, 'evidenceType', e.target.value as EvidenceType)}
                             style={{ width: '100%', padding: '6px 10px' }}
                           >
-                            <option value="checkbox">Completed Button / Checkbox</option>
-                            <option value="text">Text Notes</option>
-                            <option value="photo">Photograph(s)</option>
-                            <option value="photo_and_text">Photograph + Text Notes</option>
+                            <option value="checkbox">Completed Button / Checkbox (Photos optional)</option>
+                            <option value="text">Field Note Required (Photos optional)</option>
+                            <option value="photo_mandatory">Mandatory Photo Required (+ optional additional photos)</option>
+                            <option value="photo_and_text">Mandatory Photo + Field Note (+ optional additional photos)</option>
                           </select>
                         </div>
                       </div>

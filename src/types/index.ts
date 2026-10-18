@@ -11,7 +11,7 @@ export interface UserProfile {
   createdAt: number;
 }
 
-export type EvidenceType = 'checkbox' | 'text' | 'photo' | 'photo_and_text';
+export type EvidenceType = 'checkbox' | 'text' | 'photo_mandatory' | 'photo_and_text';
 export type ApprovalMode = 'self' | 'single_reviewer' | 'committee_vote';
 export type BadgeCategory = 'climbing' | 'camping' | 'banter' | 'milestone';
 
@@ -43,6 +43,8 @@ export interface EvidenceLog {
   id: string;
   timestamp: number;
   text?: string;
+  mandatoryPhotoUrl?: string;
+  optionalPhotoUrls?: string[];
   photoUrls?: string[];
   countDelta: number;
   recordedBy: string;

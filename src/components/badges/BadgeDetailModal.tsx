@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Plus, Camera, Award } from 'lucide-react';
+import { X, Check, Plus, Camera, Award, Image as ImageIcon, Trash2 } from 'lucide-react';
 import type { Badge, UserBadgeProgress, UserProfile } from '../../types';
 import { sounds } from '../../services/audio';
 
@@ -13,7 +13,8 @@ interface BadgeDetailModalProps {
     requirementId: string, 
     countDelta: number, 
     text?: string, 
-    photoFile?: File
+    mandatoryPhoto?: File,
+    optionalPhotos?: File[]
   ) => void;
 }
 
@@ -29,19 +30,42 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
   const [activeReqId, setActiveReqId] = useState<string>(badge.requirements[0]?.id || '');
   const [countDelta, setCountDelta] = useState<number>(1);
   const [noteText, setNoteText] = useState<string>('');
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  
+  // Mandatory photo state (if required by badge definition)
+  const [mandatoryPhoto, setMandatoryPhoto] = useState<File | null>(null);
+  const [mandatoryPhotoPreview, setMandatoryPhotoPreview] = useState<string | null>(null);
+
+  // Optional supplementary photos (can accompany ANY evidence type!)
+  const [optionalPhotos, setOptionalPhotos] = useState<File[]>([]);
+  const [optionalPreviews, setOptionalPreviews] = useState<string[]>([]);
 
   const selectedReq = badge.requirements.find(r => r.id === activeReqId);
   const currentReqProgress = progress?.progress?.[activeReqId];
   const isReqComplete = (currentReqProgress?.currentCount || 0) >= (selectedReq?.targetCount || 1);
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const isPhotoMandatory = selectedReq?.evidenceType === 'photo_mandatory' || selectedReq?.evidenceType === 'photo_and_text';
+  const isTextMandatory = selectedReq?.evidenceType === 'text' || selectedReq?.evidenceType === 'photo_and_text';
+
+  const handleMandatoryPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      setMandatoryPhoto(file);
+      setMandatoryPhotoPreview(URL.createObjectURL(file));
     }
+  };
+
+  const handleOptionalPhotosSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setOptionalPhotos(prev => [...prev, ...files]);
+      const newPreviews = files.map(f => URL.createObjectURL(f));
+      setOptionalPreviews(prev => [...prev, ...newPreviews]);
+    }
+  };
+
+  const removeOptionalPhoto = (index: number) => {
+    setOptionalPhotos(prev => prev.filter((_, i) => i !== index));
+    setOptionalPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -50,12 +74,33 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
       alert('Please sign in to log badge progress!');
       return;
     }
+
+    if (isPhotoMandatory && !mandatoryPhoto) {
+      alert('A mandatory proof photograph is required for this specific criterion.');
+      return;
+    }
+
+    if (isTextMandatory && !noteText.trim()) {
+      alert('Field notes are mandatory for this criterion.');
+      return;
+    }
+
     sounds.playCarabinerClick();
-    onLogEvidence(badge.id, activeReqId, countDelta, noteText, selectedPhoto || undefined);
+    onLogEvidence(
+      badge.id, 
+      activeReqId, 
+      countDelta, 
+      noteText.trim() || undefined, 
+      mandatoryPhoto || undefined,
+      optionalPhotos
+    );
     
+    // reset form
     setNoteText('');
-    setSelectedPhoto(null);
-    setPhotoPreview(null);
+    setMandatoryPhoto(null);
+    setMandatoryPhotoPreview(null);
+    setOptionalPhotos([]);
+    setOptionalPreviews([]);
     setCountDelta(1);
   };
 
@@ -63,7 +108,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0, 0, 0, 0.75)',
+      background: 'rgba(0, 0, 0, 0.78)',
       backdropFilter: 'blur(8px)',
       zIndex: 200,
       display: 'flex',
@@ -75,8 +120,8 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
         className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: 680,
-          maxHeight: '90vh',
+          maxWidth: 720,
+          maxHeight: '92vh',
           overflowY: 'auto',
           background: 'var(--bg-surface)',
           padding: 28,
@@ -100,6 +145,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
           <X size={20} />
         </button>
 
+        {/* Header */}
         <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', marginBottom: 24 }}>
           <div style={{
             width: 72,
@@ -128,7 +174,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
                 {badge.category}
               </span>
               <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Approval: {badge.approvalMode === 'committee_vote' ? 'Committee Vote' : badge.approvalMode === 'single_reviewer' ? 'Single Reviewer' : 'Self Awarded'}
+                Assessment: {badge.approvalMode === 'committee_vote' ? 'Majority Vote' : badge.approvalMode === 'single_reviewer' ? 'Approve (One Member)' : 'Self Assess'}
               </span>
             </div>
             <h2 style={{ fontSize: '1.4rem', color: '#fff', marginBottom: 4 }}>{badge.title}</h2>
@@ -136,6 +182,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
           </div>
         </div>
 
+        {/* Requirements Selector */}
         <div style={{ marginBottom: 20 }}>
           <h4 style={{ fontSize: '0.92rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10, letterSpacing: '0.04em' }}>
             Criteria & Requirements
@@ -146,6 +193,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
               const count = reqProg?.currentCount || 0;
               const isDone = count >= req.targetCount;
               const isSelected = activeReqId === req.id;
+              const isReqPhotoMandatory = req.evidenceType === 'photo_mandatory' || req.evidenceType === 'photo_and_text';
 
               return (
                 <div
@@ -178,7 +226,14 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
                       {isDone ? <Check size={16} /> : count}
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#fff' }}>{req.title}</div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#fff' }}>
+                        {req.title}
+                        {isReqPhotoMandatory && (
+                          <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--amber-campfire)', fontWeight: 700 }}>
+                            (Photo Mandatory)
+                          </span>
+                        )}
+                      </div>
                       {req.description && (
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{req.description}</div>
                       )}
@@ -193,6 +248,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
           </div>
         </div>
 
+        {/* Evidence Submission Form for Selected Requirement */}
         {selectedReq && (
           <form onSubmit={handleSubmit} style={{
             background: 'var(--bg-surface-elevated)',
@@ -219,89 +275,180 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
                 marginBottom: 14
               }}>
                 <Check size={18} />
-                This requirement has been reached ({currentReqProgress?.currentCount} of {selectedReq.targetCount}). You can still log more if you want!
+                This requirement is already reached ({currentReqProgress?.currentCount} of {selectedReq.targetCount}). Additional entries still welcomed!
               </div>
             ) : null}
 
-            <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Count to Add (e.g. +1 clean, +2 anchors)
-                </label>
-                <input 
-                  type="number"
-                  min={1}
-                  max={selectedReq.targetCount}
-                  value={countDelta}
-                  onChange={e => setCountDelta(Math.max(1, parseInt(e.target.value) || 1))}
-                  style={{ width: '100%' }}
-                />
-              </div>
+            {/* Target Increment */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                Count to Log in this Session (e.g. +1 clean, +2 anchors)
+              </label>
+              <input 
+                type="number"
+                min={1}
+                max={selectedReq.targetCount}
+                value={countDelta}
+                onChange={e => setCountDelta(Math.max(1, parseInt(e.target.value) || 1))}
+                style={{ width: 140 }}
+              />
+            </div>
 
-              {(selectedReq.evidenceType === 'photo' || selectedReq.evidenceType === 'photo_and_text') && (
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-                    Photo Proof (Optional)
-                  </label>
+            {/* Mandatory Photo Section (if required) */}
+            {isPhotoMandatory && (
+              <div style={{
+                marginBottom: 16,
+                padding: 14,
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 152, 0, 0.08)',
+                border: '1px solid rgba(255, 152, 0, 0.25)'
+              }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--amber-campfire)', marginBottom: 6 }}>
+                  Mandatory Photo Proof *
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                   <label style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
                     gap: 6,
-                    padding: '9px 12px',
+                    padding: '8px 14px',
                     borderRadius: 'var(--radius-sm)',
                     background: 'var(--bg-surface)',
-                    border: '1px dashed var(--border-highlight)',
+                    border: '1px dashed var(--amber-campfire)',
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    color: 'var(--text-muted)'
+                    fontSize: '0.84rem',
+                    color: '#fff',
+                    fontWeight: 600
                   }}>
-                    <Camera size={16} />
-                    <span>{selectedPhoto ? selectedPhoto.name.slice(0, 16) + '...' : 'Take or Pick Photo'}</span>
+                    <Camera size={16} color="var(--amber-campfire)" />
+                    <span>{mandatoryPhoto ? mandatoryPhoto.name.slice(0, 20) + '...' : 'Take or Select Mandatory Photo'}</span>
                     <input 
                       type="file" 
                       accept="image/*" 
-                      onChange={handlePhotoSelect} 
+                      onChange={handleMandatoryPhotoSelect} 
                       style={{ display: 'none' }} 
                     />
                   </label>
+
+                  {mandatoryPhotoPreview && (
+                    <div style={{ position: 'relative' }}>
+                      <img 
+                        src={mandatoryPhotoPreview} 
+                        alt="Mandatory proof" 
+                        style={{ width: 68, height: 68, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '2px solid var(--amber-campfire)' }} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => { setMandatoryPhoto(null); setMandatoryPhotoPreview(null); }}
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -6,
+                          background: 'red',
+                          color: '#fff',
+                          borderRadius: '50%',
+                          width: 20,
+                          height: 20,
+                          fontSize: '0.7rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        X
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Optional Supplementary Photographs (Always Allowed for ANY criterion!) */}
+            <div style={{
+              marginBottom: 16,
+              padding: 14,
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--border-subtle)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <ImageIcon size={15} color="var(--emerald-moss)" />
+                  Optional Supplementary Photographs
+                </label>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-faint)' }}>
+                  Attach extra crag views, selfies, or partner shots
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '7px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-surface)',
+                  border: '1px dashed var(--border-highlight)',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-muted)'
+                }}>
+                  <Camera size={15} />
+                  <span>Add Optional Photo(s)</span>
+                  <input 
+                    type="file" 
+                    multiple
+                    accept="image/*" 
+                    onChange={handleOptionalPhotosSelect} 
+                    style={{ display: 'none' }} 
+                  />
+                </label>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {optionalPhotos.length} optional photo{optionalPhotos.length === 1 ? '' : 's'} added
+                </span>
+              </div>
+
+              {/* Gallery of Optional Previews */}
+              {optionalPreviews.length > 0 && (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {optionalPreviews.map((preview, idx) => (
+                    <div key={idx} style={{ position: 'relative' }}>
+                      <img 
+                        src={preview} 
+                        alt={`Optional preview ${idx + 1}`} 
+                        style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-highlight)' }} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeOptionalPhoto(idx)}
+                        style={{
+                          position: 'absolute',
+                          top: -6,
+                          right: -6,
+                          background: 'rgba(0,0,0,0.8)',
+                          color: '#ff6b6b',
+                          borderRadius: '50%',
+                          width: 20,
+                          height: 20,
+                          fontSize: '0.7rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            {photoPreview && (
-              <div style={{ marginBottom: 14, position: 'relative', display: 'inline-block' }}>
-                <img 
-                  src={photoPreview} 
-                  alt="Evidence preview" 
-                  style={{ width: 100, height: 100, objectFit: 'cover', borderRadius: 'var(--radius-sm)' }} 
-                />
-                <button
-                  type="button"
-                  onClick={() => { setSelectedPhoto(null); setPhotoPreview(null); }}
-                  style={{
-                    position: 'absolute',
-                    top: -6,
-                    right: -6,
-                    background: 'red',
-                    color: '#fff',
-                    borderRadius: '50%',
-                    width: 20,
-                    height: 20,
-                    fontSize: '0.7rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  X
-                </button>
-              </div>
-            )}
-
+            {/* Notes / Story */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-                Field Notes & Crag Conditions
+                Field Notes & Crag Conditions {isTextMandatory ? '(Mandatory *)' : '(Optional)'}
               </label>
               <textarea
                 rows={2}
@@ -312,6 +459,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
               />
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               style={{
