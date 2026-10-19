@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Plus, Edit, Trash2, Sunrise, ShieldCheck, Coffee, CornerUpLeft, 
-  Flame, Zap, Mountain, Heart, Compass, Check, X, Award 
+  Flame, Zap, Mountain, Heart, Compass, Check, X, Award, Upload 
 } from 'lucide-react';
 import type { Badge, BadgeCategory, ApprovalMode, EvidenceType, BadgeRequirement } from '../../types';
 import { sounds } from '../../services/audio';
@@ -89,6 +89,20 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
     setEditingBadge(null);
   };
 
+  const handleCustomIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Use local ObjectURL or FileReader Data URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setImageUrl(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddRequirement = () => {
     setRequirements(prev => [
       ...prev,
@@ -143,8 +157,17 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
     closeModal();
   };
 
-  const renderIconPreview = (name: string, size = 20) => {
-    switch (name) {
+  const renderIconPreview = (b: Badge, size = 20) => {
+    if (b.imageUrl) {
+      return (
+        <img 
+          src={b.imageUrl} 
+          alt={b.title} 
+          style={{ width: size, height: size, objectFit: 'cover', borderRadius: 4 }} 
+        />
+      );
+    }
+    switch (b.iconName) {
       case 'Sunrise': return <Sunrise size={size} />;
       case 'ShieldCheck': return <ShieldCheck size={size} />;
       case 'Coffee': return <Coffee size={size} />;
@@ -175,7 +198,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
             Badge Management
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            Committee & Admin control panel: configure badges, mandatory evidence, and optional supplementary photo rules.
+            Committee & Admin control panel: create badges, upload custom insignia, and configure verification rules.
           </p>
         </div>
 
@@ -224,9 +247,10 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--amber-campfire)'
+                color: 'var(--amber-campfire)',
+                overflow: 'hidden'
               }}>
-                {renderIconPreview(b.iconName, 26)}
+                {renderIconPreview(b, 26)}
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -238,9 +262,9 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                     padding: '2px 6px',
                     borderRadius: 'var(--radius-sm)',
                     background: 'var(--bg-surface-elevated)',
-                    color: 'var(--text-muted)'
+                    color: b.category === 'life_skills' ? '#38bdf8' : 'var(--text-muted)'
                   }}>
-                    {b.category}
+                    {b.category === 'life_skills' ? 'Life Skills' : b.category}
                   </span>
                   {!b.isActive && (
                     <span style={{ fontSize: '0.68rem', background: 'rgba(255, 0, 0, 0.2)', color: '#ff6b6b', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
@@ -353,7 +377,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
               {isCreating ? 'Create New Badge' : `Edit "${editingBadge?.title}"`}
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 20 }}>
-              Configure badge details, approval rules, and evidence criteria. All criteria support optional photographs!
+              Configure badge details, custom artwork, and evidence criteria.
             </p>
 
             <form onSubmit={handleSubmit}>
@@ -378,7 +402,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                   >
                     <option value="climbing">Climbing</option>
                     <option value="camping">Camping</option>
-                    <option value="banter">Banter / Fun</option>
+                    <option value="life_skills">Life Skills</option>
                     <option value="milestone">Milestone</option>
                   </select>
                 </div>
@@ -438,32 +462,94 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 </div>
               </div>
 
-              {/* Icon / Image selector */}
-              <div style={{ marginBottom: 18 }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Select Badge Icon
+              {/* Custom Badge Icon Upload & Preset Icons */}
+              <div style={{
+                background: 'var(--bg-surface-elevated)',
+                padding: 16,
+                borderRadius: 'var(--radius-md)',
+                marginBottom: 18,
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#fff', marginBottom: 8 }}>
+                  Badge Insignia / Artwork
                 </label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {AVAILABLE_ICONS.map(name => (
-                    <button
-                      type="button"
-                      key={name}
-                      onClick={() => setIconName(name)}
-                      style={{
-                        padding: '8px 12px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: iconName === name ? 'var(--amber-campfire)' : 'var(--bg-surface-elevated)',
-                        color: iconName === name ? '#fff' : 'var(--text-muted)',
-                        border: iconName === name ? '1px solid var(--amber-glow)' : '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}
-                    >
-                      {renderIconPreview(name, 18)}
-                      <span style={{ fontSize: '0.78rem' }}>{name}</span>
-                    </button>
-                  ))}
+
+                {/* Upload Custom Icon */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, flexWrap: 'wrap' }}>
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255, 152, 0, 0.15)',
+                    border: '1px dashed var(--amber-campfire)',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    color: 'var(--amber-campfire)',
+                    fontWeight: 600
+                  }}>
+                    <Upload size={16} />
+                    <span>Upload Custom Badge Icon</span>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleCustomIconUpload} 
+                      style={{ display: 'none' }} 
+                    />
+                  </label>
+
+                  {imageUrl ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img 
+                        src={imageUrl} 
+                        alt="Custom badge icon preview" 
+                        style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', objectFit: 'cover', border: '2px solid var(--amber-campfire)' }} 
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setImageUrl('')}
+                        style={{ fontSize: '0.78rem', color: '#ff6b6b' }}
+                      >
+                        Remove Custom Image
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      No custom file uploaded (using standard icon below)
+                    </span>
+                  )}
+                </div>
+
+                {/* Preset Vector Icons Selector */}
+                <div>
+                  <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                    Or select from preset adventure icons:
+                  </span>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {AVAILABLE_ICONS.map(name => (
+                      <button
+                        type="button"
+                        key={name}
+                        onClick={() => {
+                          setIconName(name);
+                          setImageUrl(''); // Clear custom image if user chooses preset
+                        }}
+                        style={{
+                          padding: '7px 11px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: iconName === name && !imageUrl ? 'var(--amber-campfire)' : 'var(--bg-surface)',
+                          color: iconName === name && !imageUrl ? '#fff' : 'var(--text-muted)',
+                          border: iconName === name && !imageUrl ? '1px solid var(--amber-glow)' : '1px solid var(--border-subtle)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <span style={{ fontSize: '0.78rem' }}>{name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

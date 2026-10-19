@@ -1,5 +1,8 @@
-import React from 'react';
-import { Tent, Award, CheckSquare, Shield, User, Wifi, WifiOff, Settings, Users } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  Tent, Award, CheckSquare, Shield, User, Wifi, WifiOff, 
+  ChevronDown, Settings, Users 
+} from 'lucide-react';
 import type { UserProfile } from '../../types';
 
 export type TabKey = 'badges' | 'reviews' | 'jacket' | 'badge-mgmt' | 'user-mgmt' | 'profile';
@@ -25,8 +28,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   pendingReviewsCount,
   pendingEvictionsCount
 }) => {
-  // Admin and Committee have the exact same level of access
   const isCommittee = currentUser?.role === 'admin' || currentUser?.role === 'committee';
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setAdminMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const isAdminTabActive = activeTab === 'badge-mgmt' || activeTab === 'user-mgmt';
 
   return (
     <header className="glass-panel" style={{
@@ -67,11 +84,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Nav Tabs */}
-      <nav style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+      <nav style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
         <button
           onClick={() => setActiveTab('badges')}
           style={{
-            padding: '8px 12px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
             fontSize: '0.86rem',
             fontWeight: 600,
@@ -91,7 +108,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           onClick={() => setActiveTab('reviews')}
           style={{
             position: 'relative',
-            padding: '8px 12px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
             fontSize: '0.86rem',
             fontWeight: 600,
@@ -122,7 +139,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         <button
           onClick={() => setActiveTab('jacket')}
           style={{
-            padding: '8px 12px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
             fontSize: '0.86rem',
             fontWeight: 600,
@@ -138,48 +155,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Patch Jacket</span>
         </button>
 
-        {/* Additional Screens for Admin & Committee Members */}
+        {/* Clean Admin Dropdown (Contains Badge Management and User Management) */}
         {isCommittee && (
-          <>
+          <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
-              onClick={() => setActiveTab('badge-mgmt')}
+              onClick={() => setAdminMenuOpen(prev => !prev)}
               style={{
-                padding: '8px 12px',
+                position: 'relative',
+                padding: '8px 14px',
                 borderRadius: 'var(--radius-sm)',
                 fontSize: '0.86rem',
                 fontWeight: 600,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
-                color: activeTab === 'badge-mgmt' ? '#fff' : 'var(--emerald-moss)',
-                background: activeTab === 'badge-mgmt' ? 'rgba(46, 125, 50, 0.25)' : 'rgba(46, 125, 50, 0.1)',
-                border: activeTab === 'badge-mgmt' ? '1px solid var(--emerald-moss)' : '1px solid rgba(76, 175, 80, 0.25)'
+                color: isAdminTabActive ? '#fff' : 'var(--amber-campfire)',
+                background: isAdminTabActive ? 'var(--amber-campfire)' : 'rgba(255, 152, 0, 0.12)',
+                border: isAdminTabActive ? '1px solid var(--amber-glow)' : '1px solid rgba(255, 152, 0, 0.3)'
               }}
             >
               <Settings size={15} />
-              <span>Badge Management</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('user-mgmt')}
-              style={{
-                position: 'relative',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.86rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                color: activeTab === 'user-mgmt' ? '#fff' : 'var(--amber-campfire)',
-                background: activeTab === 'user-mgmt' ? 'rgba(255, 152, 0, 0.25)' : 'rgba(255, 152, 0, 0.1)',
-                border: activeTab === 'user-mgmt' ? '1px solid var(--amber-campfire)' : '1px solid rgba(255, 152, 0, 0.25)'
-              }}
-            >
-              <Users size={15} />
-              <span>User Management</span>
+              <span>Admin Tools</span>
+              <ChevronDown size={14} style={{ transform: adminMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              
               {pendingEvictionsCount > 0 && (
                 <span style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
                   background: 'red',
                   color: '#fff',
                   fontSize: '0.65rem',
@@ -191,13 +194,93 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </span>
               )}
             </button>
-          </>
+
+            {/* Dropdown Menu */}
+            {adminMenuOpen && (
+              <div 
+                className="glass-panel"
+                style={{
+                  position: 'absolute',
+                  top: '115%',
+                  left: 0,
+                  width: 220,
+                  background: 'var(--bg-surface)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
+                  border: '1px solid var(--border-highlight)',
+                  padding: 6,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  zIndex: 110
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setActiveTab('badge-mgmt');
+                    setAdminMenuOpen(false);
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    textAlign: 'left',
+                    color: activeTab === 'badge-mgmt' ? '#fff' : 'var(--text-main)',
+                    background: activeTab === 'badge-mgmt' ? 'var(--bg-surface-elevated)' : 'transparent'
+                  }}
+                >
+                  <Settings size={16} color="var(--emerald-moss)" />
+                  <div>
+                    <div>Badge Management</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Create & edit badges</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveTab('user-mgmt');
+                    setAdminMenuOpen(false);
+                  }}
+                  style={{
+                    position: 'relative',
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    textAlign: 'left',
+                    color: activeTab === 'user-mgmt' ? '#fff' : 'var(--text-main)',
+                    background: activeTab === 'user-mgmt' ? 'var(--bg-surface-elevated)' : 'transparent'
+                  }}
+                >
+                  <Users size={16} color="var(--amber-campfire)" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>User Management</span>
+                      {pendingEvictionsCount > 0 && (
+                        <span style={{ background: 'red', color: '#fff', fontSize: '0.62rem', padding: '1px 5px', borderRadius: 10 }}>
+                          {pendingEvictionsCount}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Roles, eviction & voting</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         <button
           onClick={() => setActiveTab('profile')}
           style={{
-            padding: '8px 12px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
             fontSize: '0.86rem',
             fontWeight: 600,

@@ -104,7 +104,11 @@ export const PatchJacket: React.FC<PatchJacketProps> = ({
                   }}
                   title={badge.title + ': ' + badge.tagline}
                 >
-                  <Award size={36} color="var(--badge-gold)" style={{ marginBottom: 6 }} />
+                  {badge.imageUrl ? (
+    <img src={badge.imageUrl} alt={badge.title} style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: '50%', marginBottom: 4, border: '2px solid var(--badge-gold)' }} />
+  ) : (
+    <Award size={36} color="var(--badge-gold)" style={{ marginBottom: 6 }} />
+  )}
                   <span style={{
                     fontSize: '0.72rem',
                     fontWeight: 700,

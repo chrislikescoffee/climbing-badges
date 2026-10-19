@@ -86,7 +86,7 @@ export const INITIAL_BADGES: Badge[] = [
     title: 'Epic Bail',
     tagline: 'The mountain will always be there tomorrow.',
     description: 'Make a sound judgment call to bail off a route or pack up camp due to weather, darkness, or good sense.',
-    category: 'banter',
+    category: 'life_skills',
     iconName: 'CornerUpLeft',
     isNominatable: true,
     approvalMode: 'committee_vote',

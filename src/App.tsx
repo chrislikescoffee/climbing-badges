@@ -361,7 +361,7 @@ export function App() {
         {activeTab === 'badges' && (
           <div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 24, overflowX: 'auto', paddingBottom: 6 }}>
-              {['all', 'climbing', 'camping', 'banter', 'milestone'].map(cat => (
+              {['all', 'climbing', 'camping', 'life_skills', 'milestone'].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
@@ -376,7 +376,7 @@ export function App() {
                     border: '1px solid var(--border-subtle)'
                   }}
                 >
-                  {cat === 'all' ? 'All Badges' : cat}
+                  {cat === 'all' ? 'All Badges' : cat === 'life_skills' ? 'Life Skills' : cat}
                 </button>
               ))}
             </div>

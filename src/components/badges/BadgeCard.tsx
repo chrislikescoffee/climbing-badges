@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Sunrise, ShieldCheck, Coffee, CornerUpLeft, Flame, Zap, 
-  CheckCircle2, Clock, Lock, Users, Sparkles, UserPlus 
+  CheckCircle2, Clock, Lock, Users, Sparkles, UserPlus, Mountain, Heart, Compass 
 } from 'lucide-react';
 import type { Badge, UserBadgeProgress, UserProfile } from '../../types';
 
@@ -22,8 +22,19 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
   onNominate,
   onShare
 }) => {
-  const renderIcon = () => {
-    const props = { size: 32, color: 'var(--chalk-white)' };
+  const renderInsignia = () => {
+    // If a custom uploaded image exists, render it!
+    if (badge.imageUrl) {
+      return (
+        <img 
+          src={badge.imageUrl} 
+          alt={badge.title} 
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} 
+        />
+      );
+    }
+
+    const props = { size: 30, color: 'var(--chalk-white)' };
     switch (badge.iconName) {
       case 'Sunrise': return <Sunrise {...props} />;
       case 'ShieldCheck': return <ShieldCheck {...props} />;
@@ -31,6 +42,9 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
       case 'CornerUpLeft': return <CornerUpLeft {...props} />;
       case 'Flame': return <Flame {...props} />;
       case 'Zap': return <Zap {...props} />;
+      case 'Mountain': return <Mountain {...props} />;
+      case 'Heart': return <Heart {...props} />;
+      case 'Compass': return <Compass {...props} />;
       default: return <Sparkles {...props} />;
     }
   };
@@ -45,6 +59,8 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
     totalCurrent += Math.min(req.targetCount, progress?.progress?.[req.id]?.currentCount || 0);
   });
   const progressPercent = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
+
+  const categoryDisplay = badge.category === 'life_skills' ? 'Life Skills' : badge.category;
 
   return (
     <div 
@@ -73,9 +89,9 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
           padding: '3px 8px',
           borderRadius: 'var(--radius-sm)',
           background: 'var(--bg-surface-elevated)',
-          color: badge.category === 'climbing' ? 'var(--emerald-moss)' : badge.category === 'camping' ? 'var(--amber-campfire)' : 'var(--slate-rock)'
+          color: badge.category === 'climbing' ? 'var(--emerald-moss)' : badge.category === 'camping' ? 'var(--amber-campfire)' : badge.category === 'life_skills' ? '#38bdf8' : 'var(--slate-rock)'
         }}>
-          {badge.category}
+          {categoryDisplay}
         </span>
 
         {isAwarded ? (
@@ -146,9 +162,10 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          boxShadow: isAwarded ? '0 0 16px rgba(255, 215, 0, 0.2)' : 'none'
+          boxShadow: isAwarded ? '0 0 16px rgba(255, 215, 0, 0.2)' : 'none',
+          overflow: 'hidden'
         }}>
-          {renderIcon()}
+          {renderInsignia()}
         </div>
 
         <div style={{ flex: 1 }}>
@@ -261,7 +278,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
         {isAwarded && (
           <button
             onClick={() => onShare(badge)}
-            title="Share Brag Card (Suggestion 4)"
+            title="Share Brag Card"
             style={{
               padding: '9px 12px',
               background: 'rgba(255, 215, 0, 0.12)',

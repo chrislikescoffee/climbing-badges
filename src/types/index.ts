@@ -13,7 +13,7 @@ export interface UserProfile {
 
 export type EvidenceType = 'checkbox' | 'text' | 'photo_mandatory' | 'photo_and_text';
 export type ApprovalMode = 'self' | 'single_reviewer' | 'committee_vote';
-export type BadgeCategory = 'climbing' | 'camping' | 'banter' | 'milestone';
+export type BadgeCategory = 'climbing' | 'camping' | 'life_skills' | 'milestone';
 
 export interface BadgeRequirement {
   id: string;
