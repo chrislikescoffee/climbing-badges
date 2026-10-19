@@ -1,3 +1,4 @@
+import { uploadEvidencePhoto } from './services/storageSync';
 import { Award, User } from 'lucide-react';
 import { signInWithGoogle, signOutUser, subscribeToAuth } from './services/authService';
 import { CreateAccountModal } from './components/auth/CreateAccountModal';
@@ -29,7 +30,7 @@ import { ProfileView } from './components/profile/ProfileView';
 
 import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
 import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier } from './types';
-import { addQueueItem, getQueueItems } from './services/offlineQueue';
+import { getQueueItems } from './services/offlineQueue';
 import { sounds } from './services/audio';
 
 // LocalStorage Persistence Keys
@@ -164,9 +165,8 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       if (fbUser) {
         console.log('[Auth] Detected active Google session for:', fbUser.email);
         const matched = users.find(u => u.uid === fbUser.uid || u.email === fbUser.email);
-        if (matched) {
-          setCurrentUserId(matched.uid);
-        }
+        const activeUid = matched ? matched.uid : fbUser.uid;
+        setCurrentUserId(activeUid);
       } else {
         console.log('[Auth] No active Google session.');
         setCurrentUserId('');
@@ -401,117 +401,119 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     mandatoryPhoto?: File,
     optionalPhotos?: File[]
   ) => {
-    if (!currentUser) return;
-
-    const photoNames = [
-      mandatoryPhoto ? mandatoryPhoto.name : null,
-      ...(optionalPhotos ? optionalPhotos.map(p => p.name) : [])
-    ].filter(Boolean);
-
-    if (!isOnline) {
-      await addQueueItem({
-        type: 'log_evidence',
-        payload: { badgeId, requirementId, countDelta, text, photoNames }
-      });
-      const q = await getQueueItems();
-      setPendingOfflineCount(q.length);
-      alert('Saved to Crag Offline Queue! Will auto-sync when you regain reception.');
+    if (!currentUser) {
+      alert('Please sign in to log badge progress!');
+      return;
     }
 
-    setUserProgress(prev => {
-      const existing = prev[badgeId] || {
-        id: `${currentUser.uid}_${badgeId}`,
-        userId: currentUser.uid,
-        badgeId,
-        status: 'in_progress',
-        progress: {},
-        awardedCount: 0,
-        upgradeTier: 1
-      };
+    // 1. Upload & compress proof photos to Cloud Storage
+    let mandatoryPhotoUrl: string | undefined = undefined;
+    if (mandatoryPhoto) {
+      mandatoryPhotoUrl = await uploadEvidencePhoto(mandatoryPhoto, currentUser.uid, badgeId);
+    }
 
-      const reqProg = existing.progress[requirementId] || {
-        requirementId,
-        currentCount: 0,
-        completed: false,
-        evidenceLogs: []
-      };
-
-      const newCount = reqProg.currentCount + countDelta;
-      const targetBadge = badges.find(b => b.id === badgeId);
-      const reqDef = targetBadge?.requirements.find(r => r.id === requirementId);
-      const isReqDone = targetBadge ? newCount >= (reqDef?.targetCount || 1) : false;
-
-      const mockMandatoryUrl = mandatoryPhoto ? URL.createObjectURL(mandatoryPhoto) : undefined;
-      const mockOptionalUrls = optionalPhotos ? optionalPhotos.map(f => URL.createObjectURL(f)) : [];
-
-      const updatedReqProg = {
-        ...reqProg,
-        currentCount: newCount,
-        completed: isReqDone,
-        evidenceLogs: [
-          ...reqProg.evidenceLogs,
-          {
-            id: 'log_' + Date.now(),
-            timestamp: Date.now(),
-            countDelta,
-            text,
-            mandatoryPhotoUrl: mockMandatoryUrl,
-            optionalPhotoUrls: mockOptionalUrls,
-            photoUrls: [mockMandatoryUrl, ...mockOptionalUrls].filter(Boolean) as string[],
-            recordedBy: currentUser.displayName
-          }
-        ]
-      };
-
-      const updatedProgressMap = {
-        ...existing.progress,
-        [requirementId]: updatedReqProg
-      };
-
-      let allCompleted = false;
-      if (targetBadge) {
-        allCompleted = targetBadge.requirements.every(req => {
-          const p = updatedProgressMap[req.id];
-          return p && p.currentCount >= req.targetCount;
-        });
+    const optionalPhotoUrls: string[] = [];
+    if (optionalPhotos && optionalPhotos.length > 0) {
+      for (const p of optionalPhotos) {
+        const u = await uploadEvidencePhoto(p, currentUser.uid, badgeId);
+        optionalPhotoUrls.push(u);
       }
+    }
 
-      let newStatus = existing.status;
-      let newAwardedCount = existing.awardedCount || 0;
-      let newUpgradeTier = existing.upgradeTier || 1;
+    const allPhotos = [mandatoryPhotoUrl, ...optionalPhotoUrls].filter(Boolean) as string[];
 
-      if (allCompleted) {
-        if (targetBadge?.approvalMode === 'self') {
-          newStatus = 'awarded';
-          sounds.playFanfare();
-          confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+    const existing = userProgress[badgeId] || {
+      id: `${currentUser.uid}_${badgeId}`,
+      userId: currentUser.uid,
+      badgeId,
+      status: 'in_progress',
+      progress: {},
+      awardedCount: 0,
+      upgradeTier: 1
+    };
 
-          if (targetBadge.awardType === 'repeatable') {
-            newAwardedCount = Math.max(1, newAwardedCount) + 1;
-          } else if (targetBadge.awardType === 'upgradable') {
-            newUpgradeTier = Math.min(upgradeTiers.length, (existing.upgradeTier || 1) + 1);
-          } else {
-            newAwardedCount = 1;
-          }
+    const reqProg = existing.progress[requirementId] || {
+      requirementId,
+      currentCount: 0,
+      completed: false,
+      evidenceLogs: []
+    };
+
+    const newCount = reqProg.currentCount + countDelta;
+    const targetBadge = badges.find(b => b.id === badgeId);
+    const reqDef = targetBadge?.requirements.find(r => r.id === requirementId);
+    const isReqDone = targetBadge ? newCount >= (reqDef?.targetCount || 1) : false;
+
+    const newEvidenceLog = {
+      id: 'log_' + Date.now(),
+      timestamp: Date.now(),
+      countDelta,
+      text,
+      mandatoryPhotoUrl,
+      optionalPhotoUrls,
+      photoUrls: allPhotos,
+      recordedBy: currentUser.displayName
+    };
+
+    const updatedReqProg = {
+      ...reqProg,
+      currentCount: newCount,
+      completed: isReqDone,
+      evidenceLogs: [...reqProg.evidenceLogs, newEvidenceLog]
+    };
+
+    const updatedProgressMap = {
+      ...existing.progress,
+      [requirementId]: updatedReqProg
+    };
+
+    let allCompleted = false;
+    if (targetBadge) {
+      allCompleted = targetBadge.requirements.every(req => {
+        const p = updatedProgressMap[req.id];
+        return p && p.currentCount >= req.targetCount;
+      });
+    }
+
+    let newStatus = existing.status;
+    let newAwardedCount = existing.awardedCount || 0;
+    let newUpgradeTier = existing.upgradeTier || 1;
+
+    if (allCompleted) {
+      if (targetBadge?.approvalMode === 'self') {
+        newStatus = 'awarded';
+        sounds.playFanfare();
+        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+
+        if (targetBadge.awardType === 'repeatable') {
+          newAwardedCount = Math.max(1, newAwardedCount) + 1;
+        } else if (targetBadge.awardType === 'upgradable') {
+          newUpgradeTier = Math.min(upgradeTiers.length, (existing.upgradeTier || 1) + 1);
         } else {
-          newStatus = 'pending_review';
+          newAwardedCount = 1;
         }
+      } else {
+        newStatus = 'pending_review';
       }
+    }
 
-      const updatedBadgeProg: UserBadgeProgress = {
-        ...existing,
-        status: newStatus,
-        progress: updatedProgressMap,
-        awardedCount: newAwardedCount,
-        upgradeTier: newUpgradeTier,
-        awardedAt: newStatus === 'awarded' ? Date.now() : existing.awardedAt
-      };
-      cloudSaveProgress(updatedBadgeProg);
-      return {
-        ...prev,
-        [badgeId]: updatedBadgeProg
-      };
-    });
+    const updatedBadgeProg: UserBadgeProgress = {
+      ...existing,
+      status: newStatus,
+      progress: updatedProgressMap,
+      awardedCount: newAwardedCount,
+      upgradeTier: newUpgradeTier,
+      awardedAt: newStatus === 'awarded' ? Date.now() : existing.awardedAt
+    };
+
+    // 2. Persist to Cloud Firestore in named database
+    await cloudSaveProgress(updatedBadgeProg);
+
+    // 3. Update local state
+    setUserProgress(prev => ({
+      ...prev,
+      [badgeId]: updatedBadgeProg
+    }));
 
     setInspectingBadge(null);
   };
@@ -668,17 +670,6 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       () => setIsCloudConnected(false)
     );
 
-    const unsubProg = subscribeToUserProgress(
-      currentUserId,
-      (cloudProg) => {
-        if (!activeSubscriptions) return;
-        setIsCloudConnected(true);
-        setUserProgress(prev => ({ ...prev, ...cloudProg }));
-      },
-      userProgress,
-      () => setIsCloudConnected(false)
-    );
-
     return () => {
       activeSubscriptions = false;
       unsubBadges();
@@ -686,9 +677,31 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       unsubUsers();
       unsubNoms();
       unsubEvict();
-      unsubProg();
     };
   }, []);
+
+
+  // Real-time synchronization of active user's badge progress from Cloud Firestore
+  useEffect(() => {
+    if (!currentUserId) {
+      setUserProgress({});
+      return;
+    }
+
+    console.log('[Sync] Subscribing to Cloud Firestore progress for user:', currentUserId);
+    const unsub = subscribeToUserProgress(
+      currentUserId,
+      (cloudProg) => {
+        console.log(`[Sync] Real-time cloud progress loaded for ${currentUserId}: ${Object.keys(cloudProg).length} items`);
+        setUserProgress(cloudProg);
+        localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(cloudProg));
+      },
+      userProgress,
+      (err) => console.error('[Sync] Error loading user progress from cloud:', err)
+    );
+
+    return () => unsub();
+  }, [currentUserId]);
 
   const committeeMembers = users.filter(u => u.role === 'committee' || u.role === 'admin');
   const pendingEvictions = evictionRequests.filter(r => r.status === 'pending');

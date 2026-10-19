@@ -7,7 +7,7 @@ interface BadgeDetailModalProps {
   badge: Badge | null;
   progress?: UserBadgeProgress;
   currentUser: UserProfile | null;
-  onClose: () => void;
+  onClose: () => Promise<void> | void;
   onNominate?: (badge: Badge) => void;
   onLogEvidence: (
     badgeId: string, 
@@ -40,6 +40,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
   // Optional supplementary photos (can accompany ANY evidence type!)
   const [optionalPhotos, setOptionalPhotos] = useState<File[]>([]);
   const [optionalPreviews, setOptionalPreviews] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const selectedReq = badge.requirements.find(r => r.id === activeReqId);
   const currentReqProgress = progress?.progress?.[activeReqId];
@@ -70,7 +71,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
     setOptionalPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
       alert('Please sign in to log badge progress!');
@@ -88,22 +89,27 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
     }
 
     sounds.playCarabinerClick();
-    onLogEvidence(
-      badge.id, 
-      activeReqId, 
-      countDelta, 
-      noteText.trim() || undefined, 
-      mandatoryPhoto || undefined,
-      optionalPhotos
-    );
-    
-    // reset form
-    setNoteText('');
-    setMandatoryPhoto(null);
-    setMandatoryPhotoPreview(null);
-    setOptionalPhotos([]);
-    setOptionalPreviews([]);
-    setCountDelta(1);
+    setIsSubmitting(true);
+    try {
+      await onLogEvidence(
+        badge.id, 
+        activeReqId, 
+        countDelta, 
+        noteText.trim() || undefined, 
+        mandatoryPhoto || undefined,
+        optionalPhotos
+      );
+      
+      // reset form
+      setNoteText('');
+      setMandatoryPhoto(null);
+      setMandatoryPhotoPreview(null);
+      setOptionalPhotos([]);
+      setOptionalPreviews([]);
+      setCountDelta(1);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -561,11 +567,12 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
             {/* Submit */}
             <button
               type="submit"
+              disabled={isSubmitting}
               style={{
                 width: '100%',
                 padding: '11px',
                 borderRadius: 'var(--radius-sm)',
-                background: 'linear-gradient(135deg, var(--amber-campfire), var(--accent-rope))',
+                background: isSubmitting ? 'var(--bg-surface-elevated)' : 'linear-gradient(135deg, var(--amber-campfire), var(--accent-rope))',
                 color: '#fff',
                 fontWeight: 700,
                 fontSize: '0.92rem',
@@ -573,11 +580,13 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
+                cursor: isSubmitting ? 'wait' : 'pointer',
+                opacity: isSubmitting ? 0.75 : 1,
                 boxShadow: '0 4px 14px rgba(255, 152, 0, 0.3)'
               }}
             >
               <Check size={18} />
-              Submit Evidence Log
+              <span>{isSubmitting ? 'Compressing & Uploading Evidence...' : 'Submit Evidence Log'}</span>
             </button>
           </form>
         )}

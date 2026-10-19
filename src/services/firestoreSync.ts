@@ -23,7 +23,7 @@ export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
 }
 
 import { 
-  collection, doc, setDoc, deleteDoc, onSnapshot 
+  collection, doc, setDoc, deleteDoc, onSnapshot, query, where 
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, isFirebaseConfigured } from './firebase';
@@ -394,28 +394,46 @@ export function subscribeToUserProgress(
   _fallbackProgress: Record<string, UserBadgeProgress>,
   onError?: (err: Error) => void
 ) {
-  if (!isFirebaseConfigured) return () => {};
+  if (!isFirebaseConfigured || !userId) return () => {};
 
   try {
-    const colRef = collection(db, COLLECTIONS.PROGRESS);
+    const q = query(
+      collection(db, COLLECTIONS.PROGRESS),
+      where('userId', '==', userId)
+    );
 
-    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const map: Record<string, UserBadgeProgress> = {};
       snapshot.forEach(docSnap => {
         const data = docSnap.data() as UserBadgeProgress;
-        if (data.userId === userId) {
-          map[data.badgeId] = data;
-        }
+        map[data.badgeId] = data;
       });
-      if (Object.keys(map).length > 0) {
-        onData(map);
-      }
+      console.log(`[Firestore] Progress Sync: Found ${Object.keys(map).length} records in cloud for user "${userId}"`);
+      onData(map);
     }, (error) => {
-      if (onError) onError(error);
+      console.warn('[Firestore] query subscribeToUserProgress error, attempting collection fallback:', error);
+      try {
+        const colRef = collection(db, COLLECTIONS.PROGRESS);
+        return onSnapshot(colRef, (snapshot) => {
+          const map: Record<string, UserBadgeProgress> = {};
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data() as UserBadgeProgress;
+            if (data.userId === userId) {
+              map[data.badgeId] = data;
+            }
+          });
+          onData(map);
+        }, (err) => {
+          if (onError) onError(err);
+        });
+      } catch (fallbackErr) {
+        if (onError) onError(error);
+      }
     });
 
     return unsubscribe;
   } catch (e: any) {
+    console.error('[Firestore] subscribeToUserProgress exception:', e);
     return () => {};
   }
 }
