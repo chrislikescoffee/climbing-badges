@@ -25,19 +25,21 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 
 export const auth = getAuth(app);
 
-// Force persistent multi-tab IndexedDB cache: stores all documents locally on disk
-// and automatically synchronizes with Firestore cloud in real-time.
+export const FIRESTORE_DATABASE_ID = import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || 'climbing-badges';
+
+// Connect specifically to the named database: 'climbing-badges'
+// with multi-tab persistent IndexedDB cache.
 let firestoreDb;
 try {
   firestoreDb = initializeFirestore(app, {
     localCache: persistentLocalCache({
       tabManager: persistentMultipleTabManager()
     })
-  });
-  console.log('[Firebase] Initialized Firestore with persistent multi-tab IndexedDB cache!');
+  }, FIRESTORE_DATABASE_ID);
+  console.log(`[Firebase] Successfully connected to named database "${FIRESTORE_DATABASE_ID}" with persistent cache!`);
 } catch (e) {
-  console.warn('[Firebase] Fallback to default getFirestore instance:', e);
-  firestoreDb = getFirestore(app);
+  console.warn(`[Firebase] Fallback to getFirestore instance for "${FIRESTORE_DATABASE_ID}":`, e);
+  firestoreDb = getFirestore(app, FIRESTORE_DATABASE_ID);
 }
 
 export const db = firestoreDb;
