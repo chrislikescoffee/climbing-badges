@@ -378,20 +378,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onSignOut && (
               <button
                 onClick={onSignOut}
-                title="Sign out / Switch account"
+                title="Sign out of your account"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   border: '1px solid var(--border-subtle)',
                   color: 'var(--text-muted)',
                   cursor: 'pointer',
-                  padding: '6px 8px',
+                  padding: '5px 10px',
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 5,
                   borderRadius: 'var(--radius-md)',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
                   transition: 'all 0.15s'
                 }}
               >
-                <LogOut size={14} />
+                <LogOut size={13} />
+                <span>Sign Out</span>
               </button>
             )}
           </div>
