@@ -1,3 +1,4 @@
+import { signInWithGoogle, signOutUser, subscribeToAuth } from './services/authService';
 import { CreateAccountModal } from './components/auth/CreateAccountModal';
 import {
   subscribeToBadges, cloudSaveBadge, cloudDeleteBadge, cloudForceSyncAllBadges,
@@ -174,6 +175,21 @@ export function App() {
   const [createUserRoleAllowed, setCreateUserRoleAllowed] = useState<boolean>(false);
   const [customCallsign, setCustomCallsign] = useState<string>('');
 
+  
+  // Listen for persistent Firebase Google Auth session
+  useEffect(() => {
+    const unsub = subscribeToAuth((fbUser) => {
+      if (fbUser) {
+        console.log('[Auth] Detected active Google session for:', fbUser.email);
+        const matched = users.find(u => u.uid === fbUser.uid || u.email === fbUser.email);
+        if (matched) {
+          setCurrentUserId(matched.uid);
+        }
+      }
+    });
+    return () => unsub();
+  }, [users]);
+
   const isCommittee = currentUser?.role === 'admin' || currentUser?.role === 'committee';
 
   useEffect(() => {
@@ -220,6 +236,30 @@ export function App() {
   };
 
   
+  
+  const handleGoogleSignIn = async () => {
+    await signInWithGoogle(users, (newUser) => {
+      setUsers(prev => {
+        const exists = prev.some(u => u.uid === newUser.uid);
+        if (exists) return prev.map(u => u.uid === newUser.uid ? newUser : u);
+        return [newUser, ...prev];
+      });
+      setCurrentUserId(newUser.uid);
+      sounds.playFanfare();
+      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+    });
+  };
+
+  const handleSignOut = async () => {
+    await signOutUser();
+    // Switch to first remaining user or null
+    if (users.length > 1) {
+      const nextUser = users.find(u => u.uid !== currentUserId);
+      if (nextUser) setCurrentUserId(nextUser.uid);
+    }
+    alert('You have signed out.');
+  };
+
   const handleCreateUser = async (newUser: UserProfile, switchToUser: boolean) => {
     // 1. Add to local React state
     setUsers(prev => [newUser, ...prev]);
@@ -669,7 +709,9 @@ export function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentUser={currentUser}
-        onLoginClick={() => setShowCallsignModal(true)}
+        onLoginClick={handleGoogleSignIn}
+        onGoogleSignIn={handleGoogleSignIn}
+        onSignOut={handleSignOut}
         isOnline={isOnline}
         pendingOfflineCount={pendingOfflineCount}
         pendingReviewsCount={nominations.filter(n => n.status === 'pending').length}
@@ -882,6 +924,8 @@ export function App() {
             onSwitchUser={(uid) => setCurrentUserId(uid)}
             onResetDefaults={handleResetToDefaults}
             isCommittee={isCommittee}
+            onGoogleSignIn={handleGoogleSignIn}
+            onSignOut={handleSignOut}
             onOpenCreateAccount={() => {
               setCreateUserRoleAllowed(false);
               setShowCreateUserModal(true);

@@ -59,7 +59,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
             Club User Management
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            Promote active members to Committee, manage club access, or vote to evict from Committee (requires 2 committee approvals).
+            Members create their own accounts by signing in with Google. Use this dashboard to promote members to Committee or manage club roles.
           </p>
         </div>
 
