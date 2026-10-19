@@ -17,12 +17,14 @@ interface ProfileViewProps {
 }
 
 const AVATAR_PRESETS = [
-  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', // Adventurer
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', // Climber
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', // Camp Chef
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150', // Mountain Guide
-  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150', // Belayer
-  'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150'  // Trailhead
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',   // Cliff Scout
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',   // Alpine Fox
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Milo',    // Boulder Kid
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Zoey',    // Camp Chef
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo',     // Mountain Ranger
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Jasper',  // Trail Blazer
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Luna',    // Night Stargazer
+  'https://api.dicebear.com/7.x/adventurer/svg?seed=Oliver'   // Carabiner Ace
 ];
 
 export const ProfileView: React.FC<ProfileViewProps> = ({

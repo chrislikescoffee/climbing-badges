@@ -36,7 +36,7 @@ export async function signInWithGoogle(
         uid: fbUser.uid,
         email: fbUser.email || '',
         displayName: fbUser.displayName || ('Climber ' + fbUser.uid.slice(0, 4)),
-        avatarUrl: fbUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        avatarUrl: fbUser.photoURL || 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
         role: isFirstUser ? 'admin' : 'member',
         status: 'active',
         createdAt: Date.now()

@@ -51,6 +51,27 @@ function loadFromStorage<T>(key: string, fallback: T): T {
   return fallback;
 }
 
+
+const migrateAvatars = (userList: UserProfile[]): UserProfile[] => {
+  const avatarMap: Record<string, string> = {
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo',
+    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Zoey',
+    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Luna',
+    'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Jasper'
+  };
+  return userList.map(u => {
+    if (avatarMap[u.avatarUrl]) {
+      return { ...u, avatarUrl: avatarMap[u.avatarUrl] };
+    }
+    if (u.avatarUrl && u.avatarUrl.includes('images.unsplash.com')) {
+      return { ...u, avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=' + encodeURIComponent(u.displayName) };
+    }
+    return u;
+  });
+};
+
 export function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -59,7 +80,7 @@ export function App() {
 
   // 1. Persistent Users & Active Account
   const [users, setUsers] = useState<UserProfile[]>(() => 
-    loadFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, MOCK_USERS)
+    migrateAvatars(loadFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, MOCK_USERS))
   );
   
   const [currentUserId, setCurrentUserId] = useState<string>(() => 
@@ -652,7 +673,7 @@ export function App() {
       (cloudUsers) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
-        setUsers(cloudUsers);
+        setUsers(migrateAvatars(cloudUsers));
       },
       MOCK_USERS,
       () => setIsCloudConnected(false)

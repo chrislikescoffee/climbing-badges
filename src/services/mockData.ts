@@ -150,7 +150,7 @@ export const MOCK_USERS: UserProfile[] = [
     uid: 'user-chris',
     email: 'chris@safeclimbing.club',
     displayName: 'Chris "SendIt" G.',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
     role: 'admin',
     status: 'active',
     createdAt: Date.now() - 15000000
@@ -159,7 +159,7 @@ export const MOCK_USERS: UserProfile[] = [
     uid: 'user-sam',
     email: 'sam@safeclimbing.club',
     displayName: 'Sam "BelaySlave" P.',
-    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
     role: 'committee',
     status: 'active',
     createdAt: Date.now() - 14000000
@@ -168,7 +168,7 @@ export const MOCK_USERS: UserProfile[] = [
     uid: 'user-alex',
     email: 'alex@safeclimbing.club',
     displayName: 'Alex "GearHead" K.',
-    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo',
     role: 'committee',
     status: 'active',
     createdAt: Date.now() - 13000000
@@ -177,7 +177,7 @@ export const MOCK_USERS: UserProfile[] = [
     uid: 'user-taylor',
     email: 'taylor@safeclimbing.club',
     displayName: 'Taylor "CampChef" W.',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Zoey',
     role: 'member',
     status: 'active',
     createdAt: Date.now() - 12000000
