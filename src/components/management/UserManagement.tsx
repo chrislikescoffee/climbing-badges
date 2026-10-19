@@ -201,7 +201,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
-              <th style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>User / Callsign</th>
+              <th style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Member / Display Name</th>
               <th style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Email (Internal)</th>
               <th style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Role</th>
               <th style={{ padding: '14px 18px', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Status</th>

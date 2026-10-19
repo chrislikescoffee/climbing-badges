@@ -63,7 +63,7 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName.trim()) {
-      alert('Display Name / Callsign is required.');
+      alert('Display Name is required.');
       return;
     }
 
@@ -209,10 +209,10 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
             </div>
           </div>
 
-          {/* Callsign / Display Name */}
+          {/* Display Name */}
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 4 }}>
-              Club Callsign / Display Name *
+              Club Display Name *
             </label>
             <div style={{ position: 'relative' }}>
               <User size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: 12 }} />

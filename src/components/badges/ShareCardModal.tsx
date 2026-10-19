@@ -154,7 +154,7 @@ export const ShareCardModal: React.FC<ShareCardModalProps> = ({
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
           }}>
-            Crag & Camp Badges • Verified by Friends
+            Badges • Verified by Friends
           </div>
         </div>
 

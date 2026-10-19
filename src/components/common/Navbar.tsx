@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type TabKey = 'badges' | 'reviews' | 'jacket' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
+export type TabKey = 'badges' | 'reviews' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
 
 interface NavbarProps {
   activeTab: TabKey;
@@ -103,7 +103,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div>
             <span style={{
               fontWeight: 800,
-              fontSize: '1.05rem',
+              fontSize: '1.15rem',
               letterSpacing: '-0.02em',
               background: 'linear-gradient(to right, #fff, #ffcc80)',
               WebkitBackgroundClip: 'text',
@@ -111,7 +111,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               display: 'block',
               lineHeight: 1.15
             }}>
-              Crag & Camp
+              Badges
             </span>
             <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
               Safe Climbing Club
@@ -170,25 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          <button
-            onClick={() => handleTabSelect('jacket')}
-            style={{
-              padding: '7px 14px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: '0.86rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              color: activeTab === 'jacket' ? '#fff' : 'var(--text-muted)',
-              background: activeTab === 'jacket' ? 'var(--bg-surface-elevated)' : 'transparent',
-              border: activeTab === 'jacket' ? '1px solid var(--border-highlight)' : '1px solid transparent',
-              cursor: 'pointer'
-            }}
-          >
-            <Award size={15} />
-            <span>My Jacket</span>
-          </button>
+
 
           {/* Committee Dropdown (Desktop) */}
           {isCommittee && (
@@ -626,26 +608,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            <button
-              onClick={() => handleTabSelect('jacket')}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.88rem',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                color: activeTab === 'jacket' ? 'var(--amber-campfire)' : '#fff',
-                background: activeTab === 'jacket' ? 'rgba(255, 152, 0, 0.12)' : 'var(--bg-surface-elevated)',
-                border: activeTab === 'jacket' ? '1px solid rgba(255, 152, 0, 0.35)' : '1px solid transparent',
-                textAlign: 'left',
-                cursor: 'pointer'
-              }}
-            >
-              <Tent size={18} color="var(--accent-rope)" />
-              <span>My Adventure Jacket</span>
-            </button>
+
 
             <button
               onClick={() => handleTabSelect('profile')}
@@ -665,7 +628,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               }}
             >
               <User size={18} color="#38bdf8" />
-              <span>My Profile & Callsign</span>
+              <span>My Profile</span>
             </button>
           </div>
 

@@ -10,8 +10,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Crag & Camp Badges',
-        short_name: 'ClimbingBadges',
+        name: 'Badges',
+        short_name: 'Badges',
         description: 'Track and award fun camping & rock climbing badges with friends',
         theme_color: '#0f1418',
         background_color: '#0f1418',
