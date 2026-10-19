@@ -36,6 +36,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
   const [iconName, setIconName] = useState('Mountain');
   const [imageUrl, setImageUrl] = useState('');
   const [isNominatable, setIsNominatable] = useState(true);
+  const [isNominationOnly, setIsNominationOnly] = useState(false);
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>('committee_vote');
   const [requirements, setRequirements] = useState<BadgeRequirement[]>([
     {
@@ -59,6 +60,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
     setIconName('Mountain');
     setImageUrl('');
     setIsNominatable(true);
+    setIsNominationOnly(false);
     setApprovalMode('committee_vote');
     setRequirements([
       {
@@ -83,6 +85,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
     setIconName(badge.iconName);
     setImageUrl(badge.imageUrl || '');
     setIsNominatable(badge.isNominatable);
+    setIsNominationOnly(Boolean(badge.isNominationOnly));
     setApprovalMode(badge.approvalMode);
     setRequirements(badge.requirements.map(r => ({ ...r })));
   };
@@ -143,6 +146,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
       iconName,
       imageUrl: imageUrl.trim() || undefined,
       isNominatable,
+      isNominationOnly,
       approvalMode,
       requirements: requirements.map((r, i) => ({
         ...r,
@@ -292,7 +296,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                   Assessment: <strong style={{ color: 'var(--amber-campfire)' }}>
                     {b.approvalMode === 'committee_vote' ? 'Majority Committee Vote' : b.approvalMode === 'single_reviewer' ? 'Approve (One Member)' : 'Self Assess'}
-                  </strong> • {b.requirements.length} requirement{b.requirements.length > 1 ? 's' : ''} • {b.isNominatable ? 'Nominatable' : 'Self-log only'}
+                  </strong> • {b.requirements.length} requirement{b.requirements.length > 1 ? 's' : ''} • {b.isNominationOnly ? 'Nominated Only (No Self-Log)' : b.isNominatable ? 'Nominatable' : 'Self-log only'}
                 </div>
               </div>
             </div>
@@ -532,15 +536,27 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
 
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
-                    Peer Nominations
+                    Nomination & Award Method
                   </label>
                   <select
-                    value={isNominatable ? 'yes' : 'no'}
-                    onChange={e => setIsNominatable(e.target.value === 'yes')}
+                    value={isNominationOnly ? 'nomination_only' : isNominatable ? 'allowed' : 'none'}
+                    onChange={e => {
+                      if (e.target.value === 'nomination_only') {
+                        setIsNominationOnly(true);
+                        setIsNominatable(true);
+                      } else if (e.target.value === 'allowed') {
+                        setIsNominationOnly(false);
+                        setIsNominatable(true);
+                      } else {
+                        setIsNominationOnly(false);
+                        setIsNominatable(false);
+                      }
+                    }}
                     style={{ width: '100%' }}
                   >
-                    <option value="yes">Allow Friends to Nominate</option>
-                    <option value="no">Self-Logged Only</option>
+                    <option value="allowed">Standard (Self-Log & Peer Nominate)</option>
+                    <option value="nomination_only">Nominated Only (Peers only - No self-logging)</option>
+                    <option value="none">Self-Log Only (No peer nominations)</option>
                   </select>
                 </div>
               </div>

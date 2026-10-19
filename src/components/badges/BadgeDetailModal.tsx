@@ -8,6 +8,7 @@ interface BadgeDetailModalProps {
   progress?: UserBadgeProgress;
   currentUser: UserProfile | null;
   onClose: () => void;
+  onNominate?: (badge: Badge) => void;
   onLogEvidence: (
     badgeId: string, 
     requirementId: string, 
@@ -23,6 +24,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
   progress,
   currentUser,
   onClose,
+  onNominate,
   onLogEvidence
 }) => {
   if (!badge) return null;
@@ -248,8 +250,52 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Evidence Submission Form for Selected Requirement */}
-        {selectedReq && (
+        {/* If badge is Nominated Only: show explanation instead of evidence form */}
+        {badge.isNominationOnly ? (
+          <div style={{
+            background: 'rgba(255, 152, 0, 0.1)',
+            border: '1px solid rgba(255, 152, 0, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            padding: 24,
+            textAlign: 'center',
+            marginTop: 10
+          }}>
+            <Award size={36} color="var(--amber-campfire)" style={{ marginBottom: 10 }} />
+            <h4 style={{ color: '#fff', fontSize: '1.1rem', marginBottom: 6 }}>
+              Nominated Only Badge
+            </h4>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', maxWidth: 460, margin: '0 auto 18px auto', lineHeight: 1.5 }}>
+              This badge is a special club honor that can <strong>only be awarded through peer nomination</strong> by friends and climbing mates.
+              Members cannot self-log or self-nominate for this badge.
+            </p>
+            {onNominate && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onNominate(badge);
+                }}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--amber-campfire)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '0.88rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 4px 12px rgba(255, 152, 0, 0.35)',
+                  cursor: 'pointer',
+                  border: 'none'
+                }}
+              >
+                <Award size={16} />
+                <span>Nominate a Friend for this Badge</span>
+              </button>
+            )}
+          </div>
+        ) : selectedReq && (
           <form onSubmit={handleSubmit} style={{
             background: 'var(--bg-surface-elevated)',
             padding: 20,

@@ -41,6 +41,7 @@ export interface Badge {
   imageUrl?: string;
   iconName: string;
   isNominatable: boolean;
+  isNominationOnly?: boolean;
   approvalMode: ApprovalMode;
   requirements: BadgeRequirement[];
   createdBy: string;
