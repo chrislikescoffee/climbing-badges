@@ -17,65 +17,141 @@ import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvicti
 import { addQueueItem, getQueueItems } from './services/offlineQueue';
 import { sounds } from './services/audio';
 
+// LocalStorage Persistence Keys
+const STORAGE_KEYS = {
+  BADGES: 'climbing_badges_list',
+  USERS: 'climbing_users_list',
+  CURRENT_USER_ID: 'climbing_current_user_id',
+  PROGRESS: 'climbing_user_progress',
+  NOMINATIONS: 'climbing_nominations',
+  EVICTIONS: 'climbing_evictions',
+  TIERS: 'climbing_upgrade_tiers'
+};
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Failed to load storage for', key, e);
+  }
+  return fallback;
+}
+
 export function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(0);
 
-  const [users, setUsers] = useState<UserProfile[]>(MOCK_USERS);
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(MOCK_USERS[0]);
+  // 1. Persistent Users & Active Account
+  const [users, setUsers] = useState<UserProfile[]>(() => 
+    loadFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, MOCK_USERS)
+  );
+  
+  const [currentUserId, setCurrentUserId] = useState<string>(() => 
+    loadFromStorage<string>(STORAGE_KEYS.CURRENT_USER_ID, 'user-chris')
+  );
 
-  const [badges, setBadges] = useState<Badge[]>(INITIAL_BADGES);
+  const currentUser = users.find(u => u.uid === currentUserId) || users[0] || null;
+
+  // 2. Persistent Badges
+  const [badges, setBadges] = useState<Badge[]>(() => 
+    loadFromStorage<Badge[]>(STORAGE_KEYS.BADGES, INITIAL_BADGES)
+  );
+
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [evictionRequests, setEvictionRequests] = useState<CommitteeEvictionRequest[]>(INITIAL_EVICTION_REQUESTS);
-  const [upgradeTiers, setUpgradeTiers] = useState<UpgradeTier[]>(INITIAL_UPGRADE_TIERS);
 
-  // User badge progress state
-  const [userProgress, setUserProgress] = useState<Record<string, UserBadgeProgress>>({
-    'early-riser': {
-      id: 'user-chris_early-riser',
-      userId: 'user-chris',
-      badgeId: 'early-riser',
-      status: 'awarded',
-      awardedCount: 3, // Earned 3 times -> Displays x3!
-      progress: {
-        'out-of-bed-first': { requirementId: 'out-of-bed-first', currentCount: 1, completed: true, evidenceLogs: [] }
-      },
-      awardedAt: Date.now() - 500000
-    },
-    'proficient-cleaner': {
-      id: 'user-chris_proficient-cleaner',
-      userId: 'user-chris',
-      badgeId: 'proficient-cleaner',
-      status: 'awarded',
-      upgradeTier: 2, // Tier 2 Silver border!
-      progress: {
-        'clean-method-a': { requirementId: 'clean-method-a', currentCount: 5, completed: true, evidenceLogs: [] },
-        'clean-method-b': { requirementId: 'clean-method-b', currentCount: 3, completed: true, evidenceLogs: [] },
-        'clean-adverse': { requirementId: 'clean-adverse', currentCount: 1, completed: true, evidenceLogs: [] }
-      },
-      awardedAt: Date.now() - 200000
-    }
-  });
+  // 3. Persistent Upgrade Tiers
+  const [upgradeTiers, setUpgradeTiers] = useState<UpgradeTier[]>(() => 
+    loadFromStorage<UpgradeTier[]>(STORAGE_KEYS.TIERS, INITIAL_UPGRADE_TIERS)
+  );
 
-  const [nominations, setNominations] = useState<Nomination[]>([
-    {
-      id: 'nom-1',
-      badgeId: 'epic-bail',
-      nomineeUserId: 'user-taylor',
-      nominatorUserId: 'user-sam',
-      nomineeDisplayName: 'Taylor "CampChef" W.',
-      nominatorDisplayName: 'Sam "BelaySlave" P.',
-      reason: 'Bailed off pitch 4 of the directissima when dark clouds rolled in. Made hot coco instead. Excellent call!',
-      status: 'pending',
-      createdAt: Date.now() - 3600000,
-      votes: {
-        'user-sam': { vote: 'approve', timestamp: Date.now() - 3000000 }
+  // 4. Persistent User Progress
+  const [userProgress, setUserProgress] = useState<Record<string, UserBadgeProgress>>(() => 
+    loadFromStorage<Record<string, UserBadgeProgress>>(STORAGE_KEYS.PROGRESS, {
+      'early-riser': {
+        id: 'user-chris_early-riser',
+        userId: 'user-chris',
+        badgeId: 'early-riser',
+        status: 'awarded',
+        awardedCount: 3,
+        progress: {
+          'out-of-bed-first': { requirementId: 'out-of-bed-first', currentCount: 1, completed: true, evidenceLogs: [] }
+        },
+        awardedAt: Date.now() - 500000
       },
-      requiredVotes: 2
-    }
-  ]);
+      'proficient-cleaner': {
+        id: 'user-chris_proficient-cleaner',
+        userId: 'user-chris',
+        badgeId: 'proficient-cleaner',
+        status: 'awarded',
+        upgradeTier: 2,
+        progress: {
+          'clean-method-a': { requirementId: 'clean-method-a', currentCount: 5, completed: true, evidenceLogs: [] },
+          'clean-method-b': { requirementId: 'clean-method-b', currentCount: 3, completed: true, evidenceLogs: [] },
+          'clean-adverse': { requirementId: 'clean-adverse', currentCount: 1, completed: true, evidenceLogs: [] }
+        },
+        awardedAt: Date.now() - 200000
+      }
+    })
+  );
 
+  // 5. Persistent Nominations
+  const [nominations, setNominations] = useState<Nomination[]>(() => 
+    loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [
+      {
+        id: 'nom-1',
+        badgeId: 'epic-bail',
+        nomineeUserId: 'user-taylor',
+        nominatorUserId: 'user-sam',
+        nomineeDisplayName: 'Taylor "CampChef" W.',
+        nominatorDisplayName: 'Sam "BelaySlave" P.',
+        reason: 'Bailed off pitch 4 of the directissima when dark clouds rolled in. Made hot coco instead. Excellent call!',
+        status: 'pending',
+        createdAt: Date.now() - 3600000,
+        votes: {
+          'user-sam': { vote: 'approve', timestamp: Date.now() - 3000000 }
+        },
+        requiredVotes: 2
+      }
+    ])
+  );
+
+  // 6. Persistent Eviction Requests
+  const [evictionRequests, setEvictionRequests] = useState<CommitteeEvictionRequest[]>(() => 
+    loadFromStorage<CommitteeEvictionRequest[]>(STORAGE_KEYS.EVICTIONS, INITIAL_EVICTION_REQUESTS)
+  );
+
+  // Save changes to localStorage whenever state updates
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(badges));
+  }, [badges]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }, [users]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, JSON.stringify(currentUserId));
+  }, [currentUserId]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TIERS, JSON.stringify(upgradeTiers));
+  }, [upgradeTiers]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(userProgress));
+  }, [userProgress]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.NOMINATIONS, JSON.stringify(nominations));
+  }, [nominations]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.EVICTIONS, JSON.stringify(evictionRequests));
+  }, [evictionRequests]);
+
+  // Modals state
   const [inspectingBadge, setInspectingBadge] = useState<Badge | null>(null);
   const [nominatingBadge, setNominatingBadge] = useState<Badge | null>(null);
   const [sharingBadge, setSharingBadge] = useState<Badge | null>(null);
@@ -97,6 +173,17 @@ export function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Reset to default starter data if needed
+  const handleResetToDefaults = () => {
+    if (confirm('Reset all badges, tiers, and data back to default starter settings? Your custom modifications will be cleared.')) {
+      setBadges(INITIAL_BADGES);
+      setUsers(MOCK_USERS);
+      setUpgradeTiers(INITIAL_UPGRADE_TIERS);
+      setEvictionRequests(INITIAL_EVICTION_REQUESTS);
+      alert('Data reset to defaults!');
+    }
+  };
 
   // Badge Management Handlers
   const handleSaveBadge = (badge: Badge) => {
@@ -171,7 +258,7 @@ export function App() {
     setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'active' } : u));
   };
 
-  // Progress Logging with Multiple Awards / Upgrades
+  // Progress Logging
   const handleLogEvidence = async (
     badgeId: string,
     requirementId: string,
@@ -416,7 +503,7 @@ export function App() {
             }}>
               {filteredBadges.map(badge => {
                 const prog = userProgress[badge.id];
-                const awarded = users.filter(u => u.uid === 'user-chris');
+                const awarded = users.filter(u => u.uid === (currentUser?.uid || 'user-chris'));
 
                 return (
                   <BadgeCard
@@ -502,7 +589,7 @@ export function App() {
           )
         )}
 
-        {/* Tab 6: Upgrade Color Tiers Management (New Admin Tool!) */}
+        {/* Tab 6: Upgrade Color Tiers Management */}
         {activeTab === 'upgrade-tiers' && (
           isCommittee ? (
             <UpgradeTierManagement
@@ -553,6 +640,7 @@ export function App() {
               </div>
             </div>
 
+            {/* Quick Switcher for testing committee/member view */}
             <div style={{
               background: 'var(--bg-surface-elevated)',
               padding: 18,
@@ -566,7 +654,7 @@ export function App() {
                 {users.map(u => (
                   <button
                     key={u.uid}
-                    onClick={() => setCurrentUser(u)}
+                    onClick={() => setCurrentUserId(u.uid)}
                     style={{
                       padding: '10px 14px',
                       borderRadius: 'var(--radius-sm)',
@@ -585,6 +673,22 @@ export function App() {
                 ))}
               </div>
             </div>
+
+            {/* Admin Reset to Defaults Button */}
+            {isCommittee && (
+              <div style={{ textAlign: 'center', paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+                <button
+                  onClick={handleResetToDefaults}
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--text-faint)',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  Reset all data back to factory defaults
+                </button>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -638,7 +742,7 @@ export function App() {
             <button
               onClick={() => {
                 if (customCallsign.trim() && currentUser) {
-                  setCurrentUser({ ...currentUser, displayName: customCallsign });
+                  setUsers(prev => prev.map(u => u.uid === currentUser.uid ? { ...u, displayName: customCallsign } : u));
                 }
                 setShowCallsignModal(false);
               }}
