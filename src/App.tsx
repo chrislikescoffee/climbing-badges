@@ -1,3 +1,13 @@
+import {
+  subscribeToBadges, cloudSaveBadge, cloudDeleteBadge,
+  subscribeToUpgradeTiers, cloudSaveUpgradeTier,
+  subscribeToUsers, cloudSaveUser,
+  subscribeToNominations, cloudSaveNomination,
+  subscribeToEvictions, cloudSaveEviction,
+  subscribeToUserProgress, cloudSaveProgress
+} from './services/firestoreSync';
+import { isFirebaseConfigured } from './services/firebase';
+
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
 import { Navbar } from './components/common/Navbar';
@@ -42,6 +52,7 @@ export function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(0);
+  const [isCloudConnected, setIsCloudConnected] = useState<boolean>(false);
 
   // 1. Persistent Users & Active Account
   const [users, setUsers] = useState<UserProfile[]>(() => 
@@ -194,19 +205,35 @@ export function App() {
       }
       return [badge, ...prev];
     });
+    cloudSaveBadge(badge);
   };
 
   const handleDeleteBadge = (badgeId: string) => {
     setBadges(prev => prev.filter(b => b.id !== badgeId));
+    cloudDeleteBadge(badgeId);
   };
 
   const handleToggleActiveBadge = (badgeId: string) => {
-    setBadges(prev => prev.map(b => b.id === badgeId ? { ...b, isActive: !b.isActive } : b));
+    setBadges(prev => prev.map(b => {
+      if (b.id === badgeId) {
+        const updated = { ...b, isActive: !b.isActive };
+        cloudSaveBadge(updated);
+        return updated;
+      }
+      return b;
+    }));
   };
 
   // User Management Handlers
   const handlePromoteToCommittee = (userId: string) => {
-    setUsers(prev => prev.map(u => u.uid === userId ? { ...u, role: 'committee' } : u));
+    setUsers(prev => prev.map(u => {
+      if (u.uid === userId) {
+        const updated = { ...u, role: 'committee' as const };
+        cloudSaveUser(updated);
+        return updated;
+      }
+      return u;
+    }));
     alert('User promoted to Committee!');
   };
 
@@ -224,6 +251,7 @@ export function App() {
       createdAt: Date.now()
     };
     setEvictionRequests(prev => [newReq, ...prev]);
+    cloudSaveEviction(newReq);
     alert('Eviction request created. A second Committee member must approve to complete the removal.');
   };
 
@@ -232,30 +260,60 @@ export function App() {
     const req = evictionRequests.find(r => r.id === requestId);
     if (!req) return;
 
-    setUsers(prev => prev.map(u => u.uid === req.targetUserId ? { ...u, role: 'member' } : u));
+    setUsers(prev => prev.map(u => {
+      if (u.uid === req.targetUserId) {
+        const updated = { ...u, role: 'member' as const };
+        cloudSaveUser(updated);
+        return updated;
+      }
+      return u;
+    }));
 
-    setEvictionRequests(prev => prev.map(r => r.id === requestId ? {
-      ...r,
+    const resolvedReq: CommitteeEvictionRequest = {
+      ...req,
       status: 'approved',
       resolvedAt: Date.now(),
       resolvedByUserId: currentUser.uid,
       resolvedByDisplayName: currentUser.displayName
-    } : r));
+    };
+    setEvictionRequests(prev => prev.map(r => r.id === requestId ? resolvedReq : r));
+    cloudSaveEviction(resolvedReq);
 
     sounds.playFanfare();
     alert(`Confirmed: ${req.targetDisplayName} has been removed from Committee (2nd approval verified).`);
   };
 
   const handleRejectEvictionFromCommittee = (requestId: string) => {
-    setEvictionRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'rejected', resolvedAt: Date.now() } : r));
+    setEvictionRequests(prev => prev.map(r => {
+      if (r.id === requestId) {
+        const updated = { ...r, status: 'rejected' as const, resolvedAt: Date.now() };
+        cloudSaveEviction(updated);
+        return updated;
+      }
+      return r;
+    }));
   };
 
   const handleEvictFromClub = (userId: string) => {
-    setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'evicted' } : u));
+    setUsers(prev => prev.map(u => {
+      if (u.uid === userId) {
+        const updated = { ...u, status: 'evicted' as const };
+        cloudSaveUser(updated);
+        return updated;
+      }
+      return u;
+    }));
   };
 
   const handleReinstateToClub = (userId: string) => {
-    setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'active' } : u));
+    setUsers(prev => prev.map(u => {
+      if (u.uid === userId) {
+        const updated = { ...u, status: 'active' as const };
+        cloudSaveUser(updated);
+        return updated;
+      }
+      return u;
+    }));
   };
 
   // Progress Logging
@@ -364,16 +422,18 @@ export function App() {
         }
       }
 
+      const updatedBadgeProg: UserBadgeProgress = {
+        ...existing,
+        status: newStatus,
+        progress: updatedProgressMap,
+        awardedCount: newAwardedCount,
+        upgradeTier: newUpgradeTier,
+        awardedAt: newStatus === 'awarded' ? Date.now() : existing.awardedAt
+      };
+      cloudSaveProgress(updatedBadgeProg);
       return {
         ...prev,
-        [badgeId]: {
-          ...existing,
-          status: newStatus,
-          progress: updatedProgressMap,
-          awardedCount: newAwardedCount,
-          upgradeTier: newUpgradeTier,
-          awardedAt: newStatus === 'awarded' ? Date.now() : existing.awardedAt
-        }
+        [badgeId]: updatedBadgeProg
       };
     });
 
@@ -402,6 +462,7 @@ export function App() {
     };
 
     setNominations(prev => [newNom, ...prev]);
+    cloudSaveNomination(newNom);
     alert('Nomination submitted! The Committee will review and vote.');
   };
 
@@ -426,19 +487,21 @@ export function App() {
         const newCount = targetBadge?.awardType === 'repeatable' ? (existingNomineeProg?.awardedCount || 1) + 1 : 1;
         const newTier = targetBadge?.awardType === 'upgradable' ? Math.min(upgradeTiers.length, (existingNomineeProg?.upgradeTier || 1) + 1) : 1;
 
+        const updatedNomineeProg: UserBadgeProgress = {
+          id: `${nom.nomineeUserId}_${nom.badgeId}`,
+          userId: nom.nomineeUserId,
+          badgeId: nom.badgeId,
+          status: 'awarded',
+          awardedCount: newCount,
+          upgradeTier: newTier,
+          progress: {},
+          awardedAt: Date.now(),
+          nominationId: nom.id
+        };
+        cloudSaveProgress(updatedNomineeProg);
         setUserProgress(curr => ({
           ...curr,
-          [nom.badgeId]: {
-            id: `${nom.nomineeUserId}_${nom.badgeId}`,
-            userId: nom.nomineeUserId,
-            badgeId: nom.badgeId,
-            status: 'awarded',
-            awardedCount: newCount,
-            upgradeTier: newTier,
-            progress: {},
-            awardedAt: Date.now(),
-            nominationId: nom.id
-          }
+          [nom.badgeId]: updatedNomineeProg
         }));
       }
 
@@ -455,6 +518,88 @@ export function App() {
     return b.category === selectedCategory;
   });
 
+  
+  // Real-time Firestore Cloud Synchronization
+  useEffect(() => {
+    if (!isFirebaseConfigured) {
+      console.log('[Firestore] Firebase not configured, staying in local storage mode.');
+      return;
+    }
+
+    console.log('[Firestore] Connecting real-time listeners for Climbing Badges...');
+    let activeSubscriptions = true;
+
+    const unsubBadges = subscribeToBadges(
+      (cloudBadges) => {
+        if (!activeSubscriptions) return;
+        setIsCloudConnected(true);
+        setBadges(cloudBadges);
+      },
+      INITIAL_BADGES,
+      () => setIsCloudConnected(false)
+    );
+
+    const unsubTiers = subscribeToUpgradeTiers(
+      (cloudTiers) => {
+        if (!activeSubscriptions) return;
+        setIsCloudConnected(true);
+        setUpgradeTiers(cloudTiers);
+      },
+      INITIAL_UPGRADE_TIERS,
+      () => setIsCloudConnected(false)
+    );
+
+    const unsubUsers = subscribeToUsers(
+      (cloudUsers) => {
+        if (!activeSubscriptions) return;
+        setIsCloudConnected(true);
+        setUsers(cloudUsers);
+      },
+      MOCK_USERS,
+      () => setIsCloudConnected(false)
+    );
+
+    const unsubNoms = subscribeToNominations(
+      (cloudNoms) => {
+        if (!activeSubscriptions) return;
+        setIsCloudConnected(true);
+        setNominations(cloudNoms);
+      },
+      [],
+      () => setIsCloudConnected(false)
+    );
+
+    const unsubEvict = subscribeToEvictions(
+      (cloudEvicts) => {
+        if (!activeSubscriptions) return;
+        setIsCloudConnected(true);
+        setEvictionRequests(cloudEvicts);
+      },
+      INITIAL_EVICTION_REQUESTS,
+      () => setIsCloudConnected(false)
+    );
+
+    const unsubProg = subscribeToUserProgress(
+      (cloudProg) => {
+        if (!activeSubscriptions) return;
+        setIsCloudConnected(true);
+        setUserProgress(prev => ({ ...prev, ...cloudProg }));
+      },
+      {},
+      () => setIsCloudConnected(false)
+    );
+
+    return () => {
+      activeSubscriptions = false;
+      unsubBadges();
+      unsubTiers();
+      unsubUsers();
+      unsubNoms();
+      unsubEvict();
+      unsubProg();
+    };
+  }, []);
+
   const committeeMembers = users.filter(u => u.role === 'committee' || u.role === 'admin');
   const pendingEvictions = evictionRequests.filter(r => r.status === 'pending');
 
@@ -469,6 +614,7 @@ export function App() {
         pendingOfflineCount={pendingOfflineCount}
         pendingReviewsCount={nominations.filter(n => n.status === 'pending').length}
         pendingEvictionsCount={pendingEvictions.length}
+        isCloudConnected={isCloudConnected}
       />
 
       <main style={{ maxWidth: 1280, margin: '0 auto' }}>
@@ -594,7 +740,10 @@ export function App() {
           isCommittee ? (
             <UpgradeTierManagement
               tiers={upgradeTiers}
-              onSaveTiers={setUpgradeTiers}
+              onSaveTiers={(newTiers) => {
+                setUpgradeTiers(newTiers);
+                newTiers.forEach(t => cloudSaveUpgradeTier(t));
+              }}
             />
           ) : (
             <div className="glass-panel" style={{ padding: 40, textAlign: 'center' }}>

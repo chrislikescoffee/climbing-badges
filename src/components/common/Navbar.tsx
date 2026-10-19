@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Tent, Award, CheckSquare, Shield, User, Wifi, WifiOff, 
+  Tent, Award, CheckSquare, Shield, User, Wifi, WifiOff, Cloud, CloudOff, 
   ChevronDown, Settings, Users, Palette 
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
@@ -16,6 +16,7 @@ interface NavbarProps {
   pendingOfflineCount: number;
   pendingReviewsCount: number;
   pendingEvictionsCount: number;
+  isCloudConnected?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -26,7 +27,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   isOnline,
   pendingOfflineCount,
   pendingReviewsCount,
-  pendingEvictionsCount
+  pendingEvictionsCount,
+  isCloudConnected = false
 }) => {
   const isCommittee = currentUser?.role === 'admin' || currentUser?.role === 'committee';
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
@@ -323,6 +325,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Right Side: Connectivity & Auth */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div
+          title={isCloudConnected ? 'Connected to Firebase Firestore' : 'Running in Local Storage / Offline Mode'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 5,
+            padding: '5px 9px',
+            borderRadius: 'var(--radius-full)',
+            background: isCloudConnected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.12)',
+            border: isCloudConnected ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(148, 163, 184, 0.25)',
+            fontSize: '0.72rem',
+            fontWeight: 600,
+            color: isCloudConnected ? '#38bdf8' : 'var(--text-muted)'
+          }}
+        >
+          {isCloudConnected ? <Cloud size={12} /> : <CloudOff size={12} />}
+          <span>{isCloudConnected ? 'Cloud Synced' : 'Local Mode'}</span>
+        </div>
+
         <div 
           title={isOnline ? 'Online - Live Sync Active' : `Offline at the Crag! ${pendingOfflineCount} items queued`}
           style={{
