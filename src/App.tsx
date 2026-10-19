@@ -21,6 +21,7 @@ import { NominateModal } from './components/nominations/NominateModal';
 import { BadgeManagement } from './components/management/BadgeManagement';
 import { UserManagement } from './components/management/UserManagement';
 import { UpgradeTierManagement } from './components/management/UpgradeTierManagement';
+import { ProfileView } from './components/profile/ProfileView';
 
 import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
 import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier } from './types';
@@ -197,6 +198,17 @@ export function App() {
   };
 
   // Badge Management Handlers
+  
+  const handleUpdateProfile = (updated: Partial<UserProfile>) => {
+    if (!currentUser) return;
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      ...updated
+    };
+    setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updatedUser : u));
+    cloudSaveUser(updatedUser);
+  };
+
   const handleSaveBadge = (badge: Badge) => {
     setBadges(prev => {
       const exists = prev.some(b => b.id === badge.id);
@@ -755,90 +767,14 @@ export function App() {
 
         {/* Tab 7: Profile */}
         {activeTab === 'profile' && currentUser && (
-          <div className="glass-panel" style={{ maxWidth: 640, margin: '0 auto', padding: 32 }}>
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <img 
-                src={currentUser.avatarUrl} 
-                alt={currentUser.displayName}
-                style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid var(--amber-campfire)', marginBottom: 12 }}
-              />
-              <h2 style={{ color: '#fff', fontSize: '1.4rem' }}>{currentUser.displayName}</h2>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 6 }}>
-                <span style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: isCommittee ? 'var(--amber-campfire)' : 'var(--text-muted)',
-                  background: isCommittee ? 'rgba(255, 152, 0, 0.15)' : 'var(--bg-surface-elevated)',
-                  padding: '3px 10px',
-                  borderRadius: 'var(--radius-full)'
-                }}>
-                  Role: {currentUser.role}
-                </span>
-                <span style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: currentUser.status === 'active' ? 'var(--emerald-moss)' : '#ff6b6b',
-                  background: currentUser.status === 'active' ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 0, 0, 0.15)',
-                  padding: '3px 10px',
-                  borderRadius: 'var(--radius-full)'
-                }}>
-                  Status: {currentUser.status}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Switcher for testing committee/member view */}
-            <div style={{
-              background: 'var(--bg-surface-elevated)',
-              padding: 18,
-              borderRadius: 'var(--radius-md)',
-              marginBottom: 20
-            }}>
-              <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-                Switch Active User (Test Committee vs. Member Permissions)
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {users.map(u => (
-                  <button
-                    key={u.uid}
-                    onClick={() => setCurrentUserId(u.uid)}
-                    style={{
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: currentUser.uid === u.uid ? 'rgba(255, 152, 0, 0.15)' : 'rgba(255,255,255,0.03)',
-                      border: currentUser.uid === u.uid ? '1px solid var(--amber-campfire)' : '1px solid var(--border-subtle)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      color: '#fff',
-                      fontSize: '0.88rem'
-                    }}
-                  >
-                    <span>{u.displayName} ({u.role})</span>
-                    {currentUser.uid === u.uid && <span style={{ color: 'var(--amber-campfire)', fontWeight: 700 }}>Active</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Admin Reset to Defaults Button */}
-            {isCommittee && (
-              <div style={{ textAlign: 'center', paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
-                <button
-                  onClick={handleResetToDefaults}
-                  style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--text-faint)',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Reset all data back to factory defaults
-                </button>
-              </div>
-            )}
-          </div>
+          <ProfileView
+            currentUser={currentUser}
+            users={users}
+            onUpdateProfile={handleUpdateProfile}
+            onSwitchUser={(uid) => setCurrentUserId(uid)}
+            onResetDefaults={handleResetToDefaults}
+            isCommittee={isCommittee}
+          />
         )}
       </main>
 
