@@ -11,6 +11,7 @@ interface ProfileViewProps {
   onSwitchUser: (userId: string) => void;
   onResetDefaults?: () => void;
   isCommittee: boolean;
+  onOpenCreateAccount?: () => void;
 }
 
 const AVATAR_PRESETS = [
@@ -28,7 +29,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onUpdateProfile,
   onSwitchUser,
   onResetDefaults,
-  isCommittee
+  isCommittee,
+  onOpenCreateAccount
 }) => {
   const [displayName, setDisplayName] = useState(currentUser.displayName);
   const [avatarUrl, setAvatarUrl] = useState(currentUser.avatarUrl);
@@ -316,10 +318,33 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
       {/* Switch Active User (Testing & Simulation) */}
       <div className="glass-panel" style={{ padding: 24, borderRadius: 'var(--radius-lg)' }}>
-        <h3 style={{ fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <RotateCcw size={16} color="var(--amber-campfire)" />
-          <span>Switch Active User (Role Testing)</span>
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+          <h3 style={{ fontSize: '0.95rem', color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <RotateCcw size={16} color="var(--amber-campfire)" />
+            <span>Switch Active User</span>
+          </h3>
+
+          {onOpenCreateAccount && (
+            <button
+              onClick={onOpenCreateAccount}
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 152, 0, 0.15)',
+                border: '1px solid rgba(255, 152, 0, 0.35)',
+                color: 'var(--amber-campfire)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                cursor: 'pointer'
+              }}
+            >
+              <span>+ Create New Account</span>
+            </button>
+          )}
+        </div>
         <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 14 }}>
           Quickly switch accounts to test how permissions and badge progress behave as Committee vs. Regular Member.
         </p>

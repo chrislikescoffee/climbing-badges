@@ -13,6 +13,7 @@ interface UserManagementProps {
   onRejectEvictionFromCommittee: (requestId: string) => void;
   onEvictFromClub: (userId: string) => void;
   onReinstateToClub: (userId: string) => void;
+  onOpenCreateUserModal?: () => void;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({
@@ -24,7 +25,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   onApproveEvictionFromCommittee,
   onRejectEvictionFromCommittee,
   onEvictFromClub,
-  onReinstateToClub
+  onReinstateToClub,
+  onOpenCreateUserModal
 }) => {
   const [evictTargetUser, setEvictTargetUser] = useState<UserProfile | null>(null);
   const [evictReason, setEvictReason] = useState('');
@@ -61,16 +63,41 @@ export const UserManagement: React.FC<UserManagementProps> = ({
           </p>
         </div>
 
-        <div style={{
-          padding: '8px 14px',
-          borderRadius: 'var(--radius-full)',
-          background: 'rgba(255, 152, 0, 0.15)',
-          border: '1px solid rgba(255, 152, 0, 0.3)',
-          color: 'var(--amber-campfire)',
-          fontSize: '0.82rem',
-          fontWeight: 700
-        }}>
-          {users.length} Total Registered Users
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {onOpenCreateUserModal && (
+            <button
+              onClick={onOpenCreateUserModal}
+              style={{
+                padding: '9px 16px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'linear-gradient(135deg, var(--emerald-pine), var(--emerald-moss))',
+                color: '#fff',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(46, 125, 50, 0.35)'
+              }}
+            >
+              <UserCheck size={16} />
+              <span>+ Add New Member</span>
+            </button>
+          )}
+
+          <div style={{
+            padding: '8px 14px',
+            borderRadius: 'var(--radius-full)',
+            background: 'rgba(255, 152, 0, 0.15)',
+            border: '1px solid rgba(255, 152, 0, 0.3)',
+            color: 'var(--amber-campfire)',
+            fontSize: '0.82rem',
+            fontWeight: 700
+          }}>
+            {users.length} Total Registered Users
+          </div>
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { CreateAccountModal } from './components/auth/CreateAccountModal';
 import {
   subscribeToBadges, cloudSaveBadge, cloudDeleteBadge, cloudForceSyncAllBadges,
   subscribeToUpgradeTiers, cloudSaveUpgradeTier,
@@ -169,6 +170,8 @@ export function App() {
   const [nominatingBadge, setNominatingBadge] = useState<Badge | null>(null);
   const [sharingBadge, setSharingBadge] = useState<Badge | null>(null);
   const [showCallsignModal, setShowCallsignModal] = useState<boolean>(false);
+  const [showCreateUserModal, setShowCreateUserModal] = useState<boolean>(false);
+  const [createUserRoleAllowed, setCreateUserRoleAllowed] = useState<boolean>(false);
   const [customCallsign, setCustomCallsign] = useState<string>('');
 
   const isCommittee = currentUser?.role === 'admin' || currentUser?.role === 'committee';
@@ -214,6 +217,23 @@ export function App() {
   const handleForceSyncBadges = async () => {
     const count = await cloudForceSyncAllBadges(badges, users, userProgress);
     alert(`Successfully synced ${count} badges, ${users.length} user accounts, and all progress to Firebase Database!`);
+  };
+
+  
+  const handleCreateUser = async (newUser: UserProfile, switchToUser: boolean) => {
+    // 1. Add to local React state
+    setUsers(prev => [newUser, ...prev]);
+
+    // 2. Upload and persist in Firestore cb_users
+    await cloudSaveUser(newUser);
+
+    // 3. Switch active user if requested
+    if (switchToUser) {
+      setCurrentUserId(newUser.uid);
+      sounds.playFanfare();
+      confetti({ particleCount: 140, spread: 75, origin: { y: 0.6 } });
+    }
+    alert(`Welcome to Safe Climbing Club, ${newUser.displayName}! Account saved to database.`);
   };
 
   const handleSaveBadge = async (badge: Badge) => {
@@ -822,6 +842,10 @@ export function App() {
               onRejectEvictionFromCommittee={handleRejectEvictionFromCommittee}
               onEvictFromClub={handleEvictFromClub}
               onReinstateToClub={handleReinstateToClub}
+              onOpenCreateUserModal={() => {
+                setCreateUserRoleAllowed(true);
+                setShowCreateUserModal(true);
+              }}
             />
           ) : (
             <div className="glass-panel" style={{ padding: 40, textAlign: 'center' }}>
@@ -858,9 +882,20 @@ export function App() {
             onSwitchUser={(uid) => setCurrentUserId(uid)}
             onResetDefaults={handleResetToDefaults}
             isCommittee={isCommittee}
+            onOpenCreateAccount={() => {
+              setCreateUserRoleAllowed(false);
+              setShowCreateUserModal(true);
+            }}
           />
         )}
       </main>
+
+      <CreateAccountModal
+        isOpen={showCreateUserModal}
+        onClose={() => setShowCreateUserModal(false)}
+        onCreateUser={handleCreateUser}
+        allowRoleSelection={createUserRoleAllowed}
+      />
 
       <BadgeDetailModal
         badge={inspectingBadge}
