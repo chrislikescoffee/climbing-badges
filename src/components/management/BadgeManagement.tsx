@@ -230,27 +230,51 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div 
+            title="All changes to badges, user accounts, and progress are automatically saved to Firebase Cloud in real time."
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 7,
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8',
+              fontSize: '0.82rem',
+              fontWeight: 600
+            }}
+          >
+            <span style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: '#38bdf8',
+              boxShadow: '0 0 8px #38bdf8'
+            }} />
+            <span>Live Auto-Sync Active</span>
+          </div>
+
           {onForceSync && (
             <button
               onClick={onForceSync}
-              title="Force push all current badges to Firebase Firestore database and persistent cache"
+              title="Force resync all records to Firebase"
               style={{
-                padding: '10px 16px',
+                padding: '8px 12px',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(56, 189, 248, 0.15)',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
-                color: '#38bdf8',
-                fontSize: '0.88rem',
-                fontWeight: 600,
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                color: 'var(--text-muted)',
+                fontSize: '0.78rem',
+                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                cursor: 'pointer'
+                gap: 5
               }}
             >
-              <Upload size={16} />
-              <span>Save All to Cloud DB</span>
+              <Upload size={13} />
+              <span>Force Resync</span>
             </button>
           )}
 
