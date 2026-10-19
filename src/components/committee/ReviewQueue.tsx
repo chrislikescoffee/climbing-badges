@@ -27,7 +27,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
   const isCommitteeMember = currentUser?.role === 'committee' || currentUser?.role === 'admin';
   const isAdmin = currentUser?.role === 'admin';
 
-  const [voteComment] = useState<Record<string, string>>({});
+  const [voteComments, setVoteComments] = useState<Record<string, string>>({});
   const [selectedUserToAdd, setSelectedUserToAdd] = useState<string>('');
 
   const pendingNominations = nominations.filter(n => n.status === 'pending');
@@ -242,11 +242,27 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                         <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 8 }}>
                           Cast your vote as a Committee Member:
                         </div>
+                        <input
+                          type="text"
+                          placeholder="Optional review note / encouraging comment..."
+                          value={voteComments[nom.id] || ''}
+                          onChange={e => setVoteComments(prev => ({ ...prev, [nom.id]: e.target.value }))}
+                          style={{
+                            width: '100%',
+                            marginBottom: 10,
+                            padding: '8px 12px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-subtle)',
+                            color: '#fff',
+                            fontSize: '0.82rem'
+                          }}
+                        />
                         <div style={{ display: 'flex', gap: 10 }}>
                           <button
                             onClick={() => {
                               sounds.playCarabinerClick();
-                              onCastVote(nom.id, 'approve', voteComment[nom.id]);
+                              onCastVote(nom.id, 'approve', voteComments[nom.id]);
                             }}
                             style={{
                               flex: 1,
@@ -269,7 +285,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                           <button
                             onClick={() => {
                               sounds.playCarabinerClick();
-                              onCastVote(nom.id, 'reject', voteComment[nom.id]);
+                              onCastVote(nom.id, 'reject', voteComments[nom.id]);
                             }}
                             style={{
                               flex: 1,

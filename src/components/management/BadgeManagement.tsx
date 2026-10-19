@@ -767,10 +767,10 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                             onChange={e => handleReqChange(idx, 'evidenceType', e.target.value as EvidenceType)}
                             style={{ width: '100%', padding: '6px 10px' }}
                           >
-                            <option value="checkbox">Completed Button / Checkbox (Photos optional)</option>
-                            <option value="text">Field Note Required (Photos optional)</option>
-                            <option value="photo_mandatory">Mandatory Photo Required (+ optional additional photos)</option>
-                            <option value="photo_and_text">Mandatory Photo + Field Note (+ optional additional photos)</option>
+                            <option value="checkbox">Completed Checkbox (Notes & Photos optional)</option>
+                            <option value="text">Mandatory Field Note (Photos optional)</option>
+                            <option value="photo_mandatory">Mandatory Photo Proof (Notes & extra photos optional)</option>
+                            <option value="photo_and_text">Mandatory Photo + Mandatory Field Note (+ optional photos)</option>
                           </select>
                         </div>
                       </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, Plus, Camera, Award, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { X, Check, Plus, Camera, Award, Image as ImageIcon, Trash2, FileText } from 'lucide-react';
 import type { Badge, UserBadgeProgress, UserProfile } from '../../types';
 import { sounds } from '../../services/audio';
 
@@ -491,19 +491,72 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
               )}
             </div>
 
-            {/* Notes / Story */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-                Field Notes & Crag Conditions {isTextMandatory ? '(Mandatory *)' : '(Optional)'}
-              </label>
+            {/* Notes / Story - Mandatory or Optional */}
+            <div style={{
+              marginBottom: 16,
+              padding: 14,
+              borderRadius: 'var(--radius-sm)',
+              background: isTextMandatory ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+              border: isTextMandatory ? '1px solid rgba(56, 189, 248, 0.25)' : '1px solid var(--border-subtle)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  color: isTextMandatory ? '#38bdf8' : '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}>
+                  <FileText size={15} color={isTextMandatory ? '#38bdf8' : 'var(--emerald-moss)'} />
+                  <span>{isTextMandatory ? 'Mandatory Field Notes *' : 'Optional Notes & Story'}</span>
+                </label>
+                <span style={{ fontSize: '0.72rem', color: isTextMandatory ? '#38bdf8' : 'var(--text-faint)' }}>
+                  {isTextMandatory ? 'Mandatory detail required for this criterion' : 'Always welcomed: conditions, route, or beta'}
+                </span>
+              </div>
               <textarea
                 rows={2}
-                placeholder="e.g., Cleaned anchor on pitch 3 in gusty wind at Arapiles."
+                placeholder={isTextMandatory ? "Document mandatory details for this criterion..." : "Add optional field notes, crag conditions, partners, or story..."}
                 value={noteText}
                 onChange={e => setNoteText(e.target.value)}
                 style={{ width: '100%', resize: 'none' }}
+                required={isTextMandatory}
               />
             </div>
+
+            {/* Past Logged Evidence History */}
+            {currentReqProgress && currentReqProgress.evidenceLogs && currentReqProgress.evidenceLogs.length > 0 && (
+              <div style={{
+                marginBottom: 16,
+                padding: 12,
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(0, 0, 0, 0.25)',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>
+                  Logged Evidence History ({currentReqProgress.evidenceLogs.length})
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 160, overflowY: 'auto' }}>
+                  {currentReqProgress.evidenceLogs.map((log, lIdx) => (
+                    <div key={log.id || lIdx} style={{ fontSize: '0.8rem', padding: '6px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.03)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.72rem', marginBottom: 2 }}>
+                        <span>+{log.countDelta} logged by {log.recordedBy}</span>
+                        <span>{new Date(log.timestamp).toLocaleDateString()}</span>
+                      </div>
+                      {log.text && <div style={{ color: '#fff', fontStyle: 'italic' }}>"{log.text}"</div>}
+                      {log.photoUrls && log.photoUrls.length > 0 && (
+                        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                          {log.photoUrls.map((p, pIdx) => (
+                            <img key={pIdx} src={p} alt="Proof" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4 }} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Submit */}
             <button
