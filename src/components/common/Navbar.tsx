@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type TabKey = 'badges' | 'reviews' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
+export type TabKey = 'badges' | 'my-badges' | 'reviews' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
 
 interface NavbarProps {
   activeTab: TabKey;
@@ -135,6 +135,26 @@ export const Navbar: React.FC<NavbarProps> = ({
             }}
           >
             Badges
+          </button>
+
+          <button
+            onClick={() => handleTabSelect('my-badges')}
+            style={{
+              padding: '7px 14px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.86rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              color: activeTab === 'my-badges' ? '#fff' : 'var(--text-muted)',
+              background: activeTab === 'my-badges' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: activeTab === 'my-badges' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              cursor: 'pointer'
+            }}
+          >
+            <Award size={15} />
+            <span>My Badges</span>
           </button>
 
           <button
@@ -571,6 +591,27 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Award size={18} color="var(--amber-campfire)" />
               <span>Badges Catalogue</span>
+            </button>
+
+            <button
+              onClick={() => handleTabSelect('my-badges')}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: activeTab === 'my-badges' ? 'var(--amber-campfire)' : '#fff',
+                background: activeTab === 'my-badges' ? 'rgba(255, 152, 0, 0.12)' : 'var(--bg-surface-elevated)',
+                border: activeTab === 'my-badges' ? '1px solid rgba(255, 152, 0, 0.35)' : '1px solid transparent',
+                textAlign: 'left',
+                cursor: 'pointer'
+              }}
+            >
+              <Award size={18} color="#ffd700" />
+              <span>My Badges</span>
             </button>
 
             <button
