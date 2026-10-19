@@ -85,7 +85,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <span>User Profile</span>
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '4px 0 0 0' }}>
-              Manage your club display name and custom avatar
+              Manage your display name and custom avatar
             </p>
             {currentUser.email && (
               <span style={{ fontSize: '0.74rem', color: 'var(--text-faint)', display: 'block', marginTop: 2 }}>
@@ -261,7 +261,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           {/* Display Name Field */}
           <div>
             <label style={{ display: 'block', fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
-              Club Display Name
+              Display Name
             </label>
             <input
               type="text"

@@ -212,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               >
                 <Shield size={14} color={isAdminTabActive ? 'var(--amber-campfire)' : 'currentColor'} />
-                <span>Committee</span>
+                <span>Admin Tools</span>
                 {(pendingEvictionsCount > 0) && (
                   <span style={{
                     width: 7,
@@ -683,7 +683,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               borderTop: '1px solid var(--border-subtle)'
             }}>
               <div style={{ fontSize: '0.72rem', color: 'var(--amber-campfire)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', paddingLeft: 4 }}>
-                Committee Management
+                Admin Tools
               </div>
 
               <button

@@ -212,7 +212,7 @@ export const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
           {/* Display Name */}
           <div>
             <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', marginBottom: 4 }}>
-              Club Display Name *
+              Display Name *
             </label>
             <div style={{ position: 'relative' }}>
               <User size={16} color="var(--text-muted)" style={{ position: 'absolute', left: 12, top: 12 }} />
