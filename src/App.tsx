@@ -16,6 +16,7 @@ import confetti from 'canvas-confetti';
 import { Navbar } from './components/common/Navbar';
 import type { TabKey } from './components/common/Navbar';
 import { BadgeCard } from './components/badges/BadgeCard';
+import { BadgeFilters } from './components/badges/BadgeFilters';
 import { BadgeDetailModal } from './components/badges/BadgeDetailModal';
 import { PatchJacket } from './components/badges/PatchJacket';
 import { ShareCardModal } from './components/badges/ShareCardModal';
@@ -714,81 +715,16 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         {/* Tab 1: Badges Explore */}
         {activeTab === 'badges' && (
           <div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-              {/* Status Filters: All / Earnt / Not yet awarded */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Status:
-                </span>
-                {[
-                  { key: 'all', label: 'All', count: totalBadgesCount },
-                  { key: 'earnt', label: 'Earnt', count: earntBadgesCount },
-                  { key: 'not_awarded', label: 'Not yet awarded', count: notAwardedBadgesCount }
-                ].map(item => {
-                  const isActive = statusFilter === item.key;
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => setStatusFilter(item.key as any)}
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.84rem',
-                        fontWeight: 600,
-                        background: isActive ? 'var(--amber-campfire)' : 'var(--bg-surface-elevated)',
-                        color: isActive ? '#fff' : 'var(--text-muted)',
-                        border: isActive ? '1px solid var(--amber-glow)' : '1px solid var(--border-subtle)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        boxShadow: isActive ? '0 2px 10px rgba(255, 152, 0, 0.3)' : 'none',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <span>{item.label}</span>
-                      <span style={{
-                        fontSize: '0.72rem',
-                        padding: '1px 6px',
-                        borderRadius: 'var(--radius-full)',
-                        background: isActive ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.08)',
-                        color: isActive ? '#fff' : 'var(--text-faint)'
-                      }}>
-                        {item.count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Category Filters */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, marginRight: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Category:
-                </span>
-                {['all', 'climbing', 'camping', 'life_skills', 'milestone'].map(cat => {
-                  const isActive = selectedCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedCategory(cat)}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                        background: isActive ? 'var(--bg-surface-elevated)' : 'transparent',
-                        color: isActive ? '#fff' : 'var(--text-muted)',
-                        border: isActive ? '1px solid var(--border-highlight)' : '1px solid transparent',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {cat === 'all' ? 'All Categories' : cat === 'life_skills' ? 'Life Skills' : cat}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <BadgeFilters
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              statusFilter={statusFilter}
+              onSelectStatus={setStatusFilter}
+              totalBadgesCount={totalBadgesCount}
+              earntBadgesCount={earntBadgesCount}
+              notAwardedBadgesCount={notAwardedBadgesCount}
+              filteredCount={filteredBadges.length}
+            />
 
             <div style={{
               display: 'grid',
