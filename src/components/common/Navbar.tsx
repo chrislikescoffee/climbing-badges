@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Tent, Award, CheckSquare, Shield, User, Wifi, WifiOff, 
-  ChevronDown, Settings, Users 
+  ChevronDown, Settings, Users, Palette 
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type TabKey = 'badges' | 'reviews' | 'jacket' | 'badge-mgmt' | 'user-mgmt' | 'profile';
+export type TabKey = 'badges' | 'reviews' | 'jacket' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
 
 interface NavbarProps {
   activeTab: TabKey;
@@ -32,7 +32,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -43,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  const isAdminTabActive = activeTab === 'badge-mgmt' || activeTab === 'user-mgmt';
+  const isAdminTabActive = activeTab === 'badge-mgmt' || activeTab === 'user-mgmt' || activeTab === 'upgrade-tiers';
 
   return (
     <header className="glass-panel" style={{
@@ -155,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Patch Jacket</span>
         </button>
 
-        {/* Clean Admin Dropdown (Contains Badge Management and User Management) */}
+        {/* Clean Admin Dropdown */}
         {isCommittee && (
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
@@ -195,7 +194,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Dropdown Menu */}
             {adminMenuOpen && (
               <div 
                 className="glass-panel"
@@ -203,7 +201,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   position: 'absolute',
                   top: '115%',
                   left: 0,
-                  width: 220,
+                  width: 230,
                   background: 'var(--bg-surface)',
                   borderRadius: 'var(--radius-md)',
                   boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
@@ -270,6 +268,32 @@ export const Navbar: React.FC<NavbarProps> = ({
                       )}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Roles, eviction & voting</div>
+                  </div>
+                </button>
+
+                {/* New Admin Tool: Upgrade Color Tiers */}
+                <button
+                  onClick={() => {
+                    setActiveTab('upgrade-tiers');
+                    setAdminMenuOpen(false);
+                  }}
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    textAlign: 'left',
+                    color: activeTab === 'upgrade-tiers' ? '#fff' : 'var(--text-main)',
+                    background: activeTab === 'upgrade-tiers' ? 'var(--bg-surface-elevated)' : 'transparent'
+                  }}
+                >
+                  <Palette size={16} color="#38bdf8" />
+                  <div>
+                    <div>Upgrade Color Tiers</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Global badge border scale</div>
                   </div>
                 </button>
               </div>

@@ -14,6 +14,14 @@ export interface UserProfile {
 export type EvidenceType = 'checkbox' | 'text' | 'photo_mandatory' | 'photo_and_text';
 export type ApprovalMode = 'self' | 'single_reviewer' | 'committee_vote';
 export type BadgeCategory = 'climbing' | 'camping' | 'life_skills' | 'milestone';
+export type BadgeAwardType = 'single' | 'repeatable' | 'upgradable';
+
+export interface UpgradeTier {
+  level: number;
+  name: string;
+  color: string; // Hex color code for borders & glow
+  description?: string;
+}
 
 export interface BadgeRequirement {
   id: string;
@@ -29,6 +37,7 @@ export interface Badge {
   tagline: string;
   description: string;
   category: BadgeCategory;
+  awardType: BadgeAwardType; // single, repeatable (x2, x3), or upgradable (colored border tiers)
   imageUrl?: string;
   iconName: string;
   isNominatable: boolean;
@@ -68,6 +77,13 @@ export interface UserBadgeProgress {
   awardedAt?: number;
   awardedBy?: string[];
   nominationId?: string;
+  awardedCount?: number; // For repeatable badges: 1, 2, 3... (x2, x3)
+  upgradeTier?: number;  // For upgradable badges: 1 (Bronze), 2 (Silver), 3 (Gold)...
+  awardHistory?: {
+    timestamp: number;
+    count?: number;
+    tier?: number;
+  }[];
 }
 
 export interface Nomination {

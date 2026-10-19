@@ -1,11 +1,12 @@
 import React from 'react';
 import { Shield, Award } from 'lucide-react';
-import type { Badge, UserBadgeProgress, UserProfile } from '../../types';
+import type { Badge, UserBadgeProgress, UserProfile, UpgradeTier } from '../../types';
 
 interface PatchJacketProps {
   user: UserProfile;
   badges: Badge[];
   userProgress: Record<string, UserBadgeProgress>;
+  upgradeTiers: UpgradeTier[];
   onSelectBadge: (badge: Badge) => void;
 }
 
@@ -13,6 +14,7 @@ export const PatchJacket: React.FC<PatchJacketProps> = ({
   user,
   badges,
   userProgress,
+  upgradeTiers,
   onSelectBadge
 }) => {
   const earnedBadges = badges.filter(b => userProgress[b.id]?.status === 'awarded');
@@ -38,7 +40,7 @@ export const PatchJacket: React.FC<PatchJacketProps> = ({
               {user.displayName}'s Patch Jacket
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-              Outdoor vest & sash showing earned cloth badges sewn on over time.
+              Outdoor vest & sash showing earned cloth badges, multiplier pins (x2, x3), and colored tier borders.
             </p>
           </div>
         </div>
@@ -91,36 +93,92 @@ export const PatchJacket: React.FC<PatchJacketProps> = ({
               alignItems: 'center',
               justifyItems: 'center'
             }}>
-              {earnedBadges.map((badge, idx) => (
-                <div
-                  key={badge.id}
-                  onClick={() => onSelectBadge(badge)}
-                  className="patch-badge"
-                  style={{
-                    width: 120,
-                    height: 120,
-                    cursor: 'pointer',
-                    transform: `rotate(${(idx % 2 === 0 ? 1 : -1) * ((idx * 3) % 7)}deg)`
-                  }}
-                  title={badge.title + ': ' + badge.tagline}
-                >
-                  {badge.imageUrl ? (
-    <img src={badge.imageUrl} alt={badge.title} style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: '50%', marginBottom: 4, border: '2px solid var(--badge-gold)' }} />
-  ) : (
-    <Award size={36} color="var(--badge-gold)" style={{ marginBottom: 6 }} />
-  )}
-                  <span style={{
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    color: '#fff',
-                    textAlign: 'center',
-                    lineHeight: 1.1,
-                    textTransform: 'uppercase'
-                  }}>
-                    {badge.title}
-                  </span>
-                </div>
-              ))}
+              {earnedBadges.map((badge, idx) => {
+                const prog = userProgress[badge.id];
+                const count = prog?.awardedCount || 1;
+                const isRepeatable = badge.awardType === 'repeatable' && count > 1;
+
+                const tierLevel = prog?.upgradeTier || 1;
+                const tierObj = upgradeTiers.find(t => t.level === tierLevel);
+                const tierBorderColor = badge.awardType === 'upgradable' && tierObj ? tierObj.color : 'rgba(255, 215, 0, 0.6)';
+
+                return (
+                  <div
+                    key={badge.id}
+                    onClick={() => onSelectBadge(badge)}
+                    className="patch-badge"
+                    style={{
+                      width: 124,
+                      height: 124,
+                      cursor: 'pointer',
+                      borderColor: tierBorderColor,
+                      boxShadow: badge.awardType === 'upgradable' && tierObj ? `0 0 18px ${tierObj.color}45` : undefined,
+                      transform: `rotate(${(idx % 2 === 0 ? 1 : -1) * ((idx * 3) % 7)}deg)`,
+                      position: 'relative'
+                    }}
+                    title={badge.title + ': ' + badge.tagline}
+                  >
+                    {/* Multiplier Pin for repeatable awards (x2, x3...) */}
+                    {isRepeatable && (
+                      <span style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -6,
+                        background: '#ffd700',
+                        color: '#0f1418',
+                        fontSize: '0.75rem',
+                        fontWeight: 900,
+                        padding: '2px 7px',
+                        borderRadius: 'var(--radius-full)',
+                        border: '2px solid #0f1418',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                        zIndex: 2
+                      }}>
+                        x{count}
+                      </span>
+                    )}
+
+                    {/* Tier Tag for upgradable badges */}
+                    {badge.awardType === 'upgradable' && tierObj && (
+                      <span style={{
+                        position: 'absolute',
+                        bottom: -6,
+                        background: tierObj.color,
+                        color: '#000',
+                        fontSize: '0.62rem',
+                        fontWeight: 900,
+                        padding: '1px 6px',
+                        borderRadius: 'var(--radius-full)',
+                        textTransform: 'uppercase',
+                        zIndex: 2
+                      }}>
+                        Tier {tierLevel}
+                      </span>
+                    )}
+
+                    {badge.imageUrl ? (
+                      <img 
+                        src={badge.imageUrl} 
+                        alt={badge.title} 
+                        style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: '50%', marginBottom: 4, border: `2px solid ${tierBorderColor}` }} 
+                      />
+                    ) : (
+                      <Award size={36} color={badge.awardType === 'upgradable' && tierObj ? tierObj.color : 'var(--badge-gold)'} style={{ marginBottom: 6 }} />
+                    )}
+
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      color: '#fff',
+                      textAlign: 'center',
+                      lineHeight: 1.1,
+                      textTransform: 'uppercase'
+                    }}>
+                      {badge.title}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

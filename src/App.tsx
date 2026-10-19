@@ -10,9 +10,10 @@ import { ReviewQueue } from './components/committee/ReviewQueue';
 import { NominateModal } from './components/nominations/NominateModal';
 import { BadgeManagement } from './components/management/BadgeManagement';
 import { UserManagement } from './components/management/UserManagement';
+import { UpgradeTierManagement } from './components/management/UpgradeTierManagement';
 
-import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS } from './services/mockData';
-import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest } from './types';
+import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
+import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier } from './types';
 import { addQueueItem, getQueueItems } from './services/offlineQueue';
 import { sounds } from './services/audio';
 
@@ -27,13 +28,16 @@ export function App() {
   const [badges, setBadges] = useState<Badge[]>(INITIAL_BADGES);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [evictionRequests, setEvictionRequests] = useState<CommitteeEvictionRequest[]>(INITIAL_EVICTION_REQUESTS);
+  const [upgradeTiers, setUpgradeTiers] = useState<UpgradeTier[]>(INITIAL_UPGRADE_TIERS);
 
+  // User badge progress state
   const [userProgress, setUserProgress] = useState<Record<string, UserBadgeProgress>>({
     'early-riser': {
       id: 'user-chris_early-riser',
       userId: 'user-chris',
       badgeId: 'early-riser',
       status: 'awarded',
+      awardedCount: 3, // Earned 3 times -> Displays x3!
       progress: {
         'out-of-bed-first': { requirementId: 'out-of-bed-first', currentCount: 1, completed: true, evidenceLogs: [] }
       },
@@ -43,12 +47,14 @@ export function App() {
       id: 'user-chris_proficient-cleaner',
       userId: 'user-chris',
       badgeId: 'proficient-cleaner',
-      status: 'in_progress',
+      status: 'awarded',
+      upgradeTier: 2, // Tier 2 Silver border!
       progress: {
-        'clean-method-a': { requirementId: 'clean-method-a', currentCount: 2, completed: false, evidenceLogs: [] },
-        'clean-method-b': { requirementId: 'clean-method-b', currentCount: 1, completed: false, evidenceLogs: [] },
-        'clean-adverse': { requirementId: 'clean-adverse', currentCount: 0, completed: false, evidenceLogs: [] }
-      }
+        'clean-method-a': { requirementId: 'clean-method-a', currentCount: 5, completed: true, evidenceLogs: [] },
+        'clean-method-b': { requirementId: 'clean-method-b', currentCount: 3, completed: true, evidenceLogs: [] },
+        'clean-adverse': { requirementId: 'clean-adverse', currentCount: 1, completed: true, evidenceLogs: [] }
+      },
+      awardedAt: Date.now() - 200000
     }
   });
 
@@ -165,7 +171,7 @@ export function App() {
     setUsers(prev => prev.map(u => u.uid === userId ? { ...u, status: 'active' } : u));
   };
 
-  // Progress Logging with optional & mandatory photographs
+  // Progress Logging with Multiple Awards / Upgrades
   const handleLogEvidence = async (
     badgeId: string,
     requirementId: string,
@@ -197,7 +203,9 @@ export function App() {
         userId: currentUser.uid,
         badgeId,
         status: 'in_progress',
-        progress: {}
+        progress: {},
+        awardedCount: 0,
+        upgradeTier: 1
       };
 
       const reqProg = existing.progress[requirementId] || {
@@ -248,11 +256,22 @@ export function App() {
       }
 
       let newStatus = existing.status;
+      let newAwardedCount = existing.awardedCount || 0;
+      let newUpgradeTier = existing.upgradeTier || 1;
+
       if (allCompleted) {
         if (targetBadge?.approvalMode === 'self') {
           newStatus = 'awarded';
           sounds.playFanfare();
           confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+
+          if (targetBadge.awardType === 'repeatable') {
+            newAwardedCount = Math.max(1, newAwardedCount) + 1;
+          } else if (targetBadge.awardType === 'upgradable') {
+            newUpgradeTier = Math.min(upgradeTiers.length, (existing.upgradeTier || 1) + 1);
+          } else {
+            newAwardedCount = 1;
+          }
         } else {
           newStatus = 'pending_review';
         }
@@ -264,6 +283,8 @@ export function App() {
           ...existing,
           status: newStatus,
           progress: updatedProgressMap,
+          awardedCount: newAwardedCount,
+          upgradeTier: newUpgradeTier,
           awardedAt: newStatus === 'awarded' ? Date.now() : existing.awardedAt
         }
       };
@@ -313,6 +334,11 @@ export function App() {
         sounds.playFanfare();
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
 
+        const targetBadge = badges.find(b => b.id === nom.badgeId);
+        const existingNomineeProg = userProgress[nom.badgeId];
+        const newCount = targetBadge?.awardType === 'repeatable' ? (existingNomineeProg?.awardedCount || 1) + 1 : 1;
+        const newTier = targetBadge?.awardType === 'upgradable' ? Math.min(upgradeTiers.length, (existingNomineeProg?.upgradeTier || 1) + 1) : 1;
+
         setUserProgress(curr => ({
           ...curr,
           [nom.badgeId]: {
@@ -320,6 +346,8 @@ export function App() {
             userId: nom.nomineeUserId,
             badgeId: nom.badgeId,
             status: 'awarded',
+            awardedCount: newCount,
+            upgradeTier: newTier,
             progress: {},
             awardedAt: Date.now(),
             nominationId: nom.id
@@ -396,6 +424,7 @@ export function App() {
                     badge={badge}
                     progress={prog}
                     awardedUsers={prog?.status === 'awarded' ? awarded : []}
+                    upgradeTiers={upgradeTiers}
                     onOpenDetails={b => setInspectingBadge(b)}
                     onNominate={b => setNominatingBadge(b)}
                     onShare={b => setSharingBadge(b)}
@@ -429,11 +458,12 @@ export function App() {
             user={currentUser}
             badges={badges}
             userProgress={userProgress}
+            upgradeTiers={upgradeTiers}
             onSelectBadge={b => setInspectingBadge(b)}
           />
         )}
 
-        {/* Tab 4: Badge Management (Admin & Committee only) */}
+        {/* Tab 4: Badge Management (Admin Tools) */}
         {activeTab === 'badge-mgmt' && (
           isCommittee ? (
             <BadgeManagement
@@ -450,7 +480,7 @@ export function App() {
           )
         )}
 
-        {/* Tab 5: User Management (Admin & Committee only) */}
+        {/* Tab 5: User Management (Admin Tools) */}
         {activeTab === 'user-mgmt' && currentUser && (
           isCommittee ? (
             <UserManagement
@@ -472,7 +502,22 @@ export function App() {
           )
         )}
 
-        {/* Tab 6: Profile / Callsign Switcher */}
+        {/* Tab 6: Upgrade Color Tiers Management (New Admin Tool!) */}
+        {activeTab === 'upgrade-tiers' && (
+          isCommittee ? (
+            <UpgradeTierManagement
+              tiers={upgradeTiers}
+              onSaveTiers={setUpgradeTiers}
+            />
+          ) : (
+            <div className="glass-panel" style={{ padding: 40, textAlign: 'center' }}>
+              <h3 style={{ color: '#fff', marginBottom: 6 }}>Access Restricted</h3>
+              <p style={{ color: 'var(--text-muted)' }}>Upgrade Tier Management is restricted to Committee & Admin members.</p>
+            </div>
+          )
+        )}
+
+        {/* Tab 7: Profile */}
         {activeTab === 'profile' && currentUser && (
           <div className="glass-panel" style={{ maxWidth: 640, margin: '0 auto', padding: 32 }}>
             <div style={{ textAlign: 'center', marginBottom: 24 }}>

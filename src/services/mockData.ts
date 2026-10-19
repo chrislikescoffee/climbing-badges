@@ -1,4 +1,12 @@
-import type { Badge, UserProfile, CommitteeEvictionRequest } from '../types';
+import type { Badge, UserProfile, CommitteeEvictionRequest, UpgradeTier } from '../types';
+
+export const INITIAL_UPGRADE_TIERS: UpgradeTier[] = [
+  { level: 1, name: 'Bronze', color: '#cd7f32', description: 'Foundational completion' },
+  { level: 2, name: 'Silver', color: '#cbd5e1', description: 'Proven proficiency' },
+  { level: 3, name: 'Gold', color: '#ffd700', description: 'Mastery & precision' },
+  { level: 4, name: 'Emerald', color: '#10b981', description: 'Crag veteran achievement' },
+  { level: 5, name: 'Diamond Cyan', color: '#06b6d4', description: 'Legendary crag status' }
+];
 
 export const INITIAL_BADGES: Badge[] = [
   {
@@ -7,6 +15,7 @@ export const INITIAL_BADGES: Badge[] = [
     tagline: 'First one boiling water while everyone else snores.',
     description: 'Be out of bed and ready to go before all other members of the group are out of bed.',
     category: 'camping',
+    awardType: 'repeatable', // Can earn multiple times (x2, x3, x4...)
     iconName: 'Sunrise',
     isNominatable: true,
     approvalMode: 'single_reviewer',
@@ -29,6 +38,7 @@ export const INITIAL_BADGES: Badge[] = [
     tagline: 'Leave no trace, leave no gear behind.',
     description: 'Master anchor cleaning under varied conditions with clean rope management.',
     category: 'climbing',
+    awardType: 'upgradable', // Colored border tiers (Tier 1 Bronze, Tier 2 Silver, Tier 3 Gold...)
     iconName: 'ShieldCheck',
     isNominatable: false,
     approvalMode: 'committee_vote',
@@ -65,6 +75,7 @@ export const INITIAL_BADGES: Badge[] = [
     tagline: 'Life is too short for instant coffee at the crag.',
     description: 'Successfully brew freshly ground espresso or pour-over at the crag base or hanging belay.',
     category: 'camping',
+    awardType: 'repeatable',
     iconName: 'Coffee',
     isNominatable: true,
     approvalMode: 'single_reviewer',
@@ -87,6 +98,7 @@ export const INITIAL_BADGES: Badge[] = [
     tagline: 'The mountain will always be there tomorrow.',
     description: 'Make a sound judgment call to bail off a route or pack up camp due to weather, darkness, or good sense.',
     category: 'life_skills',
+    awardType: 'repeatable',
     iconName: 'CornerUpLeft',
     isNominatable: true,
     approvalMode: 'committee_vote',
@@ -109,6 +121,7 @@ export const INITIAL_BADGES: Badge[] = [
     tagline: 'One match. Zero firestarter. Pure bushcraft.',
     description: 'Light a roaring campfire in challenging damp conditions using only single match and natural tinder.',
     category: 'camping',
+    awardType: 'upgradable',
     iconName: 'Flame',
     isNominatable: true,
     approvalMode: 'single_reviewer',
@@ -131,6 +144,7 @@ export const INITIAL_BADGES: Badge[] = [
     tagline: 'Catch air, not hospital beds.',
     description: 'Take a clean, safe, leader fall of at least 3 meters on sport or trad with perfect belay catch.',
     category: 'climbing',
+    awardType: 'single',
     iconName: 'Zap',
     isNominatable: true,
     approvalMode: 'committee_vote',
