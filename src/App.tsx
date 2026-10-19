@@ -212,8 +212,8 @@ export function App() {
 
 
   const handleForceSyncBadges = async () => {
-    const count = await cloudForceSyncAllBadges(badges);
-    alert(`Successfully saved ${count} badges to Firebase Cloud Database & Local Cache!`);
+    const count = await cloudForceSyncAllBadges(badges, users, userProgress);
+    alert(`Successfully synced ${count} badges, ${users.length} user accounts, and all progress to Firebase Database!`);
   };
 
   const handleSaveBadge = (badge: Badge) => {
@@ -228,8 +228,9 @@ export function App() {
   };
 
   const handleDeleteBadge = (badgeId: string) => {
+    const targetBadge = badges.find(b => b.id === badgeId);
     setBadges(prev => prev.filter(b => b.id !== badgeId));
-    cloudDeleteBadge(badgeId);
+    cloudDeleteBadge(badgeId, targetBadge?.imageUrl);
   };
 
   const handleToggleActiveBadge = (badgeId: string) => {
@@ -612,12 +613,13 @@ export function App() {
     );
 
     const unsubProg = subscribeToUserProgress(
+      currentUserId,
       (cloudProg) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
         setUserProgress(prev => ({ ...prev, ...cloudProg }));
       },
-      {},
+      userProgress,
       () => setIsCloudConnected(false)
     );
 

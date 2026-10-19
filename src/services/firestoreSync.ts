@@ -1,7 +1,8 @@
 import { 
   collection, doc, setDoc, deleteDoc, onSnapshot 
 } from 'firebase/firestore';
-import { db, isFirebaseConfigured } from './firebase';
+import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage, isFirebaseConfigured } from './firebase';
 import type { 
   Badge, UserProfile, UpgradeTier, UserBadgeProgress, 
   Nomination, CommitteeEvictionRequest 
@@ -17,8 +18,28 @@ const COLLECTIONS = {
 };
 
 /**
+ * Upload badge image to Firebase Storage
+ * Returns public HTTPS download URL, or falls back to data URL if storage rules restrict it.
+ */
+export async function uploadBadgeImageToStorage(badgeId: string, dataUrl: string): Promise<string> {
+  if (!isFirebaseConfigured || !dataUrl || !dataUrl.startsWith('data:')) {
+    return dataUrl;
+  }
+  try {
+    const storageRef = ref(storage, `cb_badge_images/${badgeId}_${Date.now()}.webp`);
+    await uploadString(storageRef, dataUrl, 'data_url');
+    const downloadUrl = await getDownloadURL(storageRef);
+    console.log(`[Storage] Uploaded badge image to Firebase Cloud Storage: ${downloadUrl}`);
+    return downloadUrl;
+  } catch (err: any) {
+    console.warn('[Storage] Note: Could not upload to Firebase Storage bucket (falling back to compressed data URL):', err.message);
+    return dataUrl;
+  }
+}
+
+/**
  * Real-time Badge listener & persistent cache loader
- * Draws directly from Firestore persistent cache + live cloud database.
+ * Draws directly from Firestore database / persistent cache on app startup.
  */
 export function subscribeToBadges(
   onData: (badges: Badge[]) => void,
@@ -30,18 +51,17 @@ export function subscribeToBadges(
   try {
     const colRef = collection(db, COLLECTIONS.BADGES);
 
-    // Live Snapshot: triggers immediately from persistent local cache, then updates from cloud
+    // Live Snapshot: triggers immediately from persistent local cache, then streams updates from cloud
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
       if (!snapshot.empty) {
         const list: Badge[] = [];
         snapshot.forEach(docSnap => {
           list.push(docSnap.data() as Badge);
         });
-        console.log(`[Firestore] Loaded ${list.length} badges from database/cache.`);
+        console.log(`[Firestore] Loaded ${list.length} badges from online database/cache.`);
         onData(list);
       } else {
-        // If Firestore collection is completely empty, seed fallback badges once
-        console.log('[Firestore] Database collection is empty. Seeding badges...');
+        console.log('[Firestore] Badges collection empty. Seeding initial badges to database...');
         fallbackBadges.forEach((badge) => {
           setDoc(doc(db, COLLECTIONS.BADGES, badge.id), badge, { merge: true }).catch(console.error);
         });
@@ -60,25 +80,40 @@ export function subscribeToBadges(
 }
 
 /**
- * Force write a badge directly to Firestore DB and local persistent cache
+ * Save badge directly to Firestore DB and local persistent cache
  */
 export async function cloudSaveBadge(badge: Badge): Promise<boolean> {
   if (!isFirebaseConfigured) return false;
   try {
     await setDoc(doc(db, COLLECTIONS.BADGES, badge.id), badge, { merge: true });
-    console.log(`[Firestore] Successfully saved badge "${badge.title}" to database and cache!`);
+    console.log(`[Firestore] Saved badge "${badge.title}" to database and cache!`);
     return true;
   } catch (e) {
-    console.error('[Firestore] Error saving badge:', e);
+    console.error('[Firestore] Error saving badge to database:', e);
     return false;
   }
 }
 
-export async function cloudDeleteBadge(badgeId: string): Promise<boolean> {
+/**
+ * Delete badge from Firestore DB and remove its image from Firebase Storage if present
+ */
+export async function cloudDeleteBadge(badgeId: string, imageUrl?: string): Promise<boolean> {
   if (!isFirebaseConfigured) return false;
   try {
+    // 1. Delete document from Firestore database
     await deleteDoc(doc(db, COLLECTIONS.BADGES, badgeId));
-    console.log(`[Firestore] Deleted badge "${badgeId}" from database.`);
+    console.log(`[Firestore] Deleted badge document "${badgeId}" from online database.`);
+
+    // 2. If image was in Firebase Storage bucket, delete it from storage
+    if (imageUrl && imageUrl.includes('firebasestorage.googleapis.com')) {
+      try {
+        const imageRef = ref(storage, imageUrl);
+        await deleteObject(imageRef);
+        console.log('[Storage] Deleted badge image from Firebase Storage bucket.');
+      } catch (storageErr) {
+        console.warn('[Storage] Notice: Could not remove image object from bucket:', storageErr);
+      }
+    }
     return true;
   } catch (e) {
     console.error('[Firestore] Error deleting badge:', e);
@@ -87,9 +122,13 @@ export async function cloudDeleteBadge(badgeId: string): Promise<boolean> {
 }
 
 /**
- * Force-sync all badges to Firestore DB (handy if local edits exist)
+ * Force-sync all badges, users, tiers, and progress to Firestore DB
  */
-export async function cloudForceSyncAllBadges(badges: Badge[]): Promise<number> {
+export async function cloudForceSyncAllBadges(
+  badges: Badge[],
+  users?: UserProfile[],
+  progress?: Record<string, UserBadgeProgress>
+): Promise<number> {
   if (!isFirebaseConfigured) return 0;
   let count = 0;
   for (const b of badges) {
@@ -100,7 +139,29 @@ export async function cloudForceSyncAllBadges(badges: Badge[]): Promise<number> 
       console.error('[Firestore] Error syncing badge:', b.id, e);
     }
   }
-  console.log(`[Firestore] Force-synced ${count} of ${badges.length} badges to cloud DB.`);
+
+  if (users && users.length > 0) {
+    for (const u of users) {
+      try {
+        await setDoc(doc(db, COLLECTIONS.USERS, u.uid), u, { merge: true });
+      } catch (e) {
+        console.error('[Firestore] Error syncing user:', u.uid, e);
+      }
+    }
+  }
+
+  if (progress && Object.keys(progress).length > 0) {
+    for (const p of Object.values(progress)) {
+      try {
+        const docId = p.id || `${p.userId}_${p.badgeId}`;
+        await setDoc(doc(db, COLLECTIONS.PROGRESS, docId), p, { merge: true });
+      } catch (e) {
+        console.error('[Firestore] Error syncing progress:', p.badgeId, e);
+      }
+    }
+  }
+
+  console.log(`[Firestore] Completed full online sync of ${count} badges, ${users?.length || 0} users, and progress items.`);
   return count;
 }
 
@@ -152,6 +213,7 @@ export async function cloudSaveUpgradeTier(tier: UpgradeTier): Promise<void> {
 
 /**
  * Users listener & seeder
+ * Pulls user accounts from online database on startup.
  */
 export function subscribeToUsers(
   onData: (users: UserProfile[]) => void,
@@ -169,6 +231,7 @@ export function subscribeToUsers(
         snapshot.forEach(docSnap => {
           list.push(docSnap.data() as UserProfile);
         });
+        console.log(`[Firestore] Loaded ${list.length} user accounts from online database.`);
         onData(list);
       } else {
         fallbackUsers.forEach((user) => {
@@ -190,6 +253,7 @@ export async function cloudSaveUser(user: UserProfile): Promise<void> {
   if (!isFirebaseConfigured) return;
   try {
     await setDoc(doc(db, COLLECTIONS.USERS, user.uid), user, { merge: true });
+    console.log(`[Firestore] Saved user account "${user.displayName}" to database.`);
   } catch (e) {
     console.error('[Firestore] Error saving user:', e);
   }
@@ -273,8 +337,10 @@ export async function cloudSaveEviction(request: CommitteeEvictionRequest): Prom
 
 /**
  * User Progress listener
+ * Pulls badge progress for the specified user from online database.
  */
 export function subscribeToUserProgress(
+  userId: string,
   onData: (progress: Record<string, UserBadgeProgress>) => void,
   _fallbackProgress: Record<string, UserBadgeProgress>,
   onError?: (err: Error) => void
@@ -288,7 +354,9 @@ export function subscribeToUserProgress(
       const map: Record<string, UserBadgeProgress> = {};
       snapshot.forEach(docSnap => {
         const data = docSnap.data() as UserBadgeProgress;
-        map[data.badgeId] = data;
+        if (data.userId === userId) {
+          map[data.badgeId] = data;
+        }
       });
       if (Object.keys(map).length > 0) {
         onData(map);
@@ -303,11 +371,15 @@ export function subscribeToUserProgress(
   }
 }
 
+/**
+ * Save user badge progress to database
+ */
 export async function cloudSaveProgress(progress: UserBadgeProgress): Promise<void> {
   if (!isFirebaseConfigured) return;
   try {
     const docId = progress.id || `${progress.userId}_${progress.badgeId}`;
     await setDoc(doc(db, COLLECTIONS.PROGRESS, docId), progress, { merge: true });
+    console.log(`[Firestore] Uploaded badge progress for user "${progress.userId}", badge "${progress.badgeId}"`);
   } catch (e) {
     console.error('[Firestore] Error saving progress:', e);
   }

@@ -1,4 +1,5 @@
 import { compressImage } from '../../utils/imageCompressor';
+import { uploadBadgeImageToStorage } from '../../services/firestoreSync';
 import React, { useState } from 'react';
 import { 
   Plus, Edit, Trash2, Sunrise, ShieldCheck, Coffee, CornerUpLeft, 
@@ -131,22 +132,28 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
     setRequirements(prev => prev.map((req, i) => i === index ? { ...req, [field]: value } : req));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || requirements.length === 0) {
       alert('Please provide a title and at least one requirement!');
       return;
     }
 
+    const badgeId = id || ('badge_' + Date.now());
+    let finalImageUrl = imageUrl.trim() || undefined;
+    if (finalImageUrl && finalImageUrl.startsWith('data:')) {
+      finalImageUrl = await uploadBadgeImageToStorage(badgeId, finalImageUrl);
+    }
+
     const badgeData: Badge = {
-      id: id || ('badge_' + Date.now()),
+      id: badgeId,
       title: title.trim(),
       tagline: tagline.trim(),
       description: description.trim(),
       category,
       awardType,
       iconName,
-      imageUrl: imageUrl.trim() || undefined,
+      imageUrl: finalImageUrl,
       isNominatable,
       isNominationOnly,
       approvalMode,
