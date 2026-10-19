@@ -145,43 +145,6 @@ export const INITIAL_BADGES: Badge[] = [
   }
 ];
 
-export const MOCK_USERS: UserProfile[] = [
-  {
-    uid: 'user-chris',
-    email: 'chris@safeclimbing.club',
-    displayName: 'Chris "SendIt" G.',
-    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
-    role: 'admin',
-    status: 'active',
-    createdAt: Date.now() - 15000000
-  },
-  {
-    uid: 'user-sam',
-    email: 'sam@safeclimbing.club',
-    displayName: 'Sam "BelaySlave" P.',
-    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
-    role: 'committee',
-    status: 'active',
-    createdAt: Date.now() - 14000000
-  },
-  {
-    uid: 'user-alex',
-    email: 'alex@safeclimbing.club',
-    displayName: 'Alex "GearHead" K.',
-    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Leo',
-    role: 'committee',
-    status: 'active',
-    createdAt: Date.now() - 13000000
-  },
-  {
-    uid: 'user-taylor',
-    email: 'taylor@safeclimbing.club',
-    displayName: 'Taylor "CampChef" W.',
-    avatarUrl: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Zoey',
-    role: 'member',
-    status: 'active',
-    createdAt: Date.now() - 12000000
-  }
-];
+export const MOCK_USERS: UserProfile[] = [];
 
 export const INITIAL_EVICTION_REQUESTS: CommitteeEvictionRequest[] = [];

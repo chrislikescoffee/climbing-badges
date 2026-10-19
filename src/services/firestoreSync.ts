@@ -253,8 +253,18 @@ export function subscribeToUsers(
     const unsubscribe = onSnapshot(colRef, (snapshot) => {
       if (!snapshot.empty) {
         const list: UserProfile[] = [];
+        const TEMP_IDS = ['user-chris', 'user-sam', 'user-alex', 'user-taylor', 'user-jordan'];
         snapshot.forEach(docSnap => {
-          list.push(docSnap.data() as UserProfile);
+          const data = docSnap.data() as UserProfile;
+          const isTemp = TEMP_IDS.includes(docSnap.id) ||
+                         data.email?.endsWith('@example.com') ||
+                         data.email?.endsWith('@safeclimbing.club');
+          if (isTemp) {
+            // Attempt to purge temp record from Firestore
+            deleteDoc(doc(db, COLLECTIONS.USERS, docSnap.id)).catch(() => {});
+          } else {
+            list.push(data);
+          }
         });
         console.log(`[Firestore] Loaded ${list.length} user accounts from online database.`);
         onData(list);
@@ -271,6 +281,20 @@ export function subscribeToUsers(
     return unsubscribe;
   } catch (e: any) {
     return () => {};
+  }
+}
+
+
+/**
+ * Permanently delete a user from Firestore
+ */
+export async function cloudDeleteUser(userId: string): Promise<void> {
+  if (!isFirebaseConfigured) return;
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.USERS, userId));
+    console.log('[Firestore] Deleted user from database:', userId);
+  } catch (e) {
+    console.error('[Firestore] Error deleting user:', userId, e);
   }
 }
 

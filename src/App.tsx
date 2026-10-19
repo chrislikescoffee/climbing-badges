@@ -3,7 +3,7 @@ import { CreateAccountModal } from './components/auth/CreateAccountModal';
 import {
   subscribeToBadges, cloudSaveBadge, cloudDeleteBadge, cloudForceSyncAllBadges,
   subscribeToUpgradeTiers, cloudSaveUpgradeTier,
-  subscribeToUsers, cloudSaveUser,
+  subscribeToUsers, cloudSaveUser, cloudDeleteUser,
   subscribeToNominations, cloudSaveNomination,
   subscribeToEvictions, cloudSaveEviction,
   subscribeToUserProgress, cloudSaveProgress
@@ -53,6 +53,8 @@ function loadFromStorage<T>(key: string, fallback: T): T {
 
 
 const migrateAvatars = (userList: UserProfile[]): UserProfile[] => {
+  const TEMP_IDS = ['user-chris', 'user-sam', 'user-alex', 'user-taylor', 'user-jordan'];
+  userList = userList.filter(u => !TEMP_IDS.includes(u.uid) && !u.email?.endsWith('@example.com') && !u.email?.endsWith('@safeclimbing.club'));
   const avatarMap: Record<string, string> = {
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Felix',
     'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150': 'https://api.dicebear.com/7.x/adventurer/svg?seed=Aneka',
@@ -84,7 +86,7 @@ export function App() {
   );
   
   const [currentUserId, setCurrentUserId] = useState<string>(() => 
-    loadFromStorage<string>(STORAGE_KEYS.CURRENT_USER_ID, 'user-chris')
+    loadFromStorage<string>(STORAGE_KEYS.CURRENT_USER_ID, '')
   );
 
   const currentUser = users.find(u => u.uid === currentUserId) || users[0] || null;
@@ -104,53 +106,12 @@ export function App() {
 
   // 4. Persistent User Progress
   const [userProgress, setUserProgress] = useState<Record<string, UserBadgeProgress>>(() => 
-    loadFromStorage<Record<string, UserBadgeProgress>>(STORAGE_KEYS.PROGRESS, {
-      'a1b2c3d4-0001-4000-8000-000000000001': {
-        id: 'user-chris_early-riser',
-        userId: 'user-chris',
-        badgeId: 'a1b2c3d4-0001-4000-8000-000000000001',
-        status: 'awarded',
-        awardedCount: 3,
-        progress: {
-          'out-of-bed-first': { requirementId: 'out-of-bed-first', currentCount: 1, completed: true, evidenceLogs: [] }
-        },
-        awardedAt: Date.now() - 500000
-      },
-      'a1b2c3d4-0002-4000-8000-000000000002': {
-        id: 'user-chris_proficient-cleaner',
-        userId: 'user-chris',
-        badgeId: 'a1b2c3d4-0002-4000-8000-000000000002',
-        status: 'awarded',
-        upgradeTier: 2,
-        progress: {
-          'clean-method-a': { requirementId: 'clean-method-a', currentCount: 5, completed: true, evidenceLogs: [] },
-          'clean-method-b': { requirementId: 'clean-method-b', currentCount: 3, completed: true, evidenceLogs: [] },
-          'clean-adverse': { requirementId: 'clean-adverse', currentCount: 1, completed: true, evidenceLogs: [] }
-        },
-        awardedAt: Date.now() - 200000
-      }
-    })
+loadFromStorage<Record<string, UserBadgeProgress>>(STORAGE_KEYS.PROGRESS, {})
   );
 
   // 5. Persistent Nominations
   const [nominations, setNominations] = useState<Nomination[]>(() => 
-    loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [
-      {
-        id: 'nom-1',
-        badgeId: 'a1b2c3d4-0004-4000-8000-000000000004',
-        nomineeUserId: 'user-taylor',
-        nominatorUserId: 'user-sam',
-        nomineeDisplayName: 'Taylor "CampChef" W.',
-        nominatorDisplayName: 'Sam "BelaySlave" P.',
-        reason: 'Bailed off pitch 4 of the directissima when dark clouds rolled in. Made hot coco instead. Excellent call!',
-        status: 'pending',
-        createdAt: Date.now() - 3600000,
-        votes: {
-          'user-sam': { vote: 'approve', timestamp: Date.now() - 3000000 }
-        },
-        requiredVotes: 2
-      }
-    ])
+loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   );
 
   // 6. Persistent Eviction Requests
@@ -399,6 +360,12 @@ export function App() {
       }
       return r;
     }));
+  };
+
+  
+  const handleDeleteUserPermanently = async (userId: string) => {
+    setUsers(prev => prev.filter(u => u.uid !== userId));
+    await cloudDeleteUser(userId);
   };
 
   const handleEvictFromClub = (userId: string) => {
@@ -827,7 +794,7 @@ export function App() {
             }}>
               {filteredBadges.map(badge => {
                 const prog = userProgress[badge.id];
-                const awarded = users.filter(u => u.uid === (currentUser?.uid || 'user-chris'));
+                const awarded = currentUser ? users.filter(u => u.uid === currentUser.uid) : [];
 
                 return (
                   <BadgeCard
@@ -904,6 +871,7 @@ export function App() {
               onApproveEvictionFromCommittee={handleApproveEvictionFromCommittee}
               onRejectEvictionFromCommittee={handleRejectEvictionFromCommittee}
               onEvictFromClub={handleEvictFromClub}
+            onDeleteUser={handleDeleteUserPermanently}
               onReinstateToClub={handleReinstateToClub}
               onOpenCreateUserModal={() => {
                 setCreateUserRoleAllowed(true);

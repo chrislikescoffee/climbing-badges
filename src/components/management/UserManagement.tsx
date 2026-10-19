@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserX, UserCheck, AlertTriangle, Check, ShieldAlert, ArrowUpCircle } from 'lucide-react';
+import { UserX, UserCheck, AlertTriangle, Check, ShieldAlert, ArrowUpCircle, Trash2 } from 'lucide-react';
 import type { UserProfile, CommitteeEvictionRequest } from '../../types';
 import { sounds } from '../../services/audio';
 
@@ -14,6 +14,7 @@ interface UserManagementProps {
   onEvictFromClub: (userId: string) => void;
   onReinstateToClub: (userId: string) => void;
   onOpenCreateUserModal?: () => void;
+  onDeleteUser?: (userId: string) => void;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({
@@ -26,7 +27,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   onRejectEvictionFromCommittee,
   onEvictFromClub,
   onReinstateToClub,
-  onOpenCreateUserModal
+  onOpenCreateUserModal,
+  onDeleteUser
 }) => {
   const [evictTargetUser, setEvictTargetUser] = useState<UserProfile | null>(null);
   const [evictReason, setEvictReason] = useState('');
@@ -294,6 +296,28 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         >
                           <ShieldAlert size={14} />
                           <span>Evict from Committee</span>
+                        </button>
+                      )}
+
+                      {/* Permanently Delete User */}
+                      {!isSelf && onDeleteUser && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Permanently delete account for "${u.displayName}"?`)) {
+                              onDeleteUser(u.uid);
+                            }
+                          }}
+                          title="Permanently Delete Account"
+                          style={{
+                            padding: '6px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            color: '#ef4444',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Trash2 size={13} />
                         </button>
                       )}
 
