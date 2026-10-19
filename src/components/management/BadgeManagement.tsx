@@ -1,3 +1,4 @@
+import { compressImage } from '../../utils/imageCompressor';
 import React, { useState } from 'react';
 import { 
   Plus, Edit, Trash2, Sunrise, ShieldCheck, Coffee, CornerUpLeft, 
@@ -11,6 +12,7 @@ interface BadgeManagementProps {
   onSaveBadge: (badge: Badge) => void;
   onDeleteBadge: (badgeId: string) => void;
   onToggleActive: (badgeId: string) => void;
+  onForceSync?: () => void;
 }
 
 const AVAILABLE_ICONS = [
@@ -21,7 +23,8 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
   badges,
   onSaveBadge,
   onDeleteBadge,
-  onToggleActive
+  onToggleActive,
+  onForceSync
 }) => {
   const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
   const [isCreating, setIsCreating] = useState<boolean>(false);
@@ -95,16 +98,15 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
     setEditingBadge(null);
   };
 
-  const handleCustomIconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setImageUrl(event.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file, 256, 256, 0.85);
+        setImageUrl(compressed);
+      } catch (err) {
+        console.error('Image compression failed, using direct reader:', err);
+      }
     }
   };
 
@@ -209,24 +211,49 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={openCreateModal}
-          style={{
-            padding: '10px 18px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'linear-gradient(135deg, var(--emerald-pine), var(--emerald-moss))',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            boxShadow: '0 4px 14px rgba(46, 125, 50, 0.4)'
-          }}
-        >
-          <Plus size={18} />
-          <span>Create New Badge</span>
-        </button>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {onForceSync && (
+            <button
+              onClick={onForceSync}
+              title="Force push all current badges to Firebase Firestore database and persistent cache"
+              style={{
+                padding: '10px 16px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#38bdf8',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer'
+              }}
+            >
+              <Upload size={16} />
+              <span>Save All to Cloud DB</span>
+            </button>
+          )}
+
+          <button
+            onClick={openCreateModal}
+            style={{
+              padding: '10px 18px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'linear-gradient(135deg, var(--emerald-pine), var(--emerald-moss))',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: '0 4px 14px rgba(46, 125, 50, 0.4)'
+            }}
+          >
+            <Plus size={18} />
+            <span>Create New Badge</span>
+          </button>
+        </div>
       </div>
 
       {/* Badges Table / List */}

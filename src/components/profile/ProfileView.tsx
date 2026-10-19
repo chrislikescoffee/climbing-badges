@@ -1,3 +1,4 @@
+import { compressImage } from '../../utils/imageCompressor';
 import React, { useState, useRef } from 'react';
 import { Camera, Check, RotateCcw, User, Shield, Sparkles } from 'lucide-react';
 import type { UserProfile } from '../../types';
@@ -41,24 +42,17 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     setSaveSuccess(false);
   }, [currentUser.uid]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Photo is larger than 2MB. Please choose a smaller image.');
-      return;
+    try {
+      const compressed = await compressImage(file, 256, 256, 0.85);
+      setAvatarUrl(compressed);
+      setSaveSuccess(false);
+    } catch (err) {
+      console.error('Avatar compression failed:', err);
     }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      if (result) {
-        setAvatarUrl(result);
-        setSaveSuccess(false);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleSave = (e: React.FormEvent) => {

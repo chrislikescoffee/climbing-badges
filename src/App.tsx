@@ -1,5 +1,5 @@
 import {
-  subscribeToBadges, cloudSaveBadge, cloudDeleteBadge,
+  subscribeToBadges, cloudSaveBadge, cloudDeleteBadge, cloudForceSyncAllBadges,
   subscribeToUpgradeTiers, cloudSaveUpgradeTier,
   subscribeToUsers, cloudSaveUser,
   subscribeToNominations, cloudSaveNomination,
@@ -208,6 +208,12 @@ export function App() {
     };
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updatedUser : u));
     cloudSaveUser(updatedUser);
+  };
+
+
+  const handleForceSyncBadges = async () => {
+    const count = await cloudForceSyncAllBadges(badges);
+    alert(`Successfully saved ${count} badges to Firebase Cloud Database & Local Cache!`);
   };
 
   const handleSaveBadge = (badge: Badge) => {
@@ -785,6 +791,7 @@ export function App() {
               onSaveBadge={handleSaveBadge}
               onDeleteBadge={handleDeleteBadge}
               onToggleActive={handleToggleActiveBadge}
+              onForceSync={handleForceSyncBadges}
             />
           ) : (
             <div className="glass-panel" style={{ padding: 40, textAlign: 'center' }}>
