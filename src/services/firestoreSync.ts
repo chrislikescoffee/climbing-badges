@@ -1,3 +1,27 @@
+
+/**
+ * Recursively removes undefined fields so Firestore setDoc never rejects with
+ * "Unsupported field value: undefined"
+ */
+export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      result[key] = value.map(item => 
+        typeof item === 'object' && item !== null ? sanitizeForFirestore(item) : item
+      );
+    } else if (typeof value === 'object' && value !== null) {
+      result[key] = sanitizeForFirestore(value);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 import { 
   collection, doc, setDoc, deleteDoc, onSnapshot 
 } from 'firebase/firestore';
@@ -85,7 +109,8 @@ export function subscribeToBadges(
 export async function cloudSaveBadge(badge: Badge): Promise<boolean> {
   if (!isFirebaseConfigured) return false;
   try {
-    await setDoc(doc(db, COLLECTIONS.BADGES, badge.id), badge, { merge: true });
+    const sanitizedBadge = sanitizeForFirestore(badge);
+    await setDoc(doc(db, COLLECTIONS.BADGES, badge.id), sanitizedBadge, { merge: true });
     console.log(`[Firestore] Saved badge "${badge.title}" to database and cache!`);
     return true;
   } catch (e) {
@@ -133,7 +158,7 @@ export async function cloudForceSyncAllBadges(
   let count = 0;
   for (const b of badges) {
     try {
-      await setDoc(doc(db, COLLECTIONS.BADGES, b.id), b, { merge: true });
+      await setDoc(doc(db, COLLECTIONS.BADGES, b.id), sanitizeForFirestore(b), { merge: true });
       count++;
     } catch (e) {
       console.error('[Firestore] Error syncing badge:', b.id, e);

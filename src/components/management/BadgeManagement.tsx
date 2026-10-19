@@ -1,3 +1,15 @@
+
+function generateBadgeUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'badge-' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 import { compressImage } from '../../utils/imageCompressor';
 import { uploadBadgeImageToStorage } from '../../services/firestoreSync';
 import React, { useState } from 'react';
@@ -55,7 +67,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
   const openCreateModal = () => {
     setIsCreating(true);
     setEditingBadge(null);
-    setId('badge_' + Date.now());
+    setId(generateBadgeUUID());
     setTitle('');
     setTagline('');
     setDescription('');
@@ -139,7 +151,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
       return;
     }
 
-    const badgeId = id || ('badge_' + Date.now());
+    const badgeId = id || generateBadgeUUID();
     let finalImageUrl = imageUrl.trim() || undefined;
     if (finalImageUrl && finalImageUrl.startsWith('data:')) {
       finalImageUrl = await uploadBadgeImageToStorage(badgeId, finalImageUrl);

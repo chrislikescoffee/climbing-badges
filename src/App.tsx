@@ -82,10 +82,10 @@ export function App() {
   // 4. Persistent User Progress
   const [userProgress, setUserProgress] = useState<Record<string, UserBadgeProgress>>(() => 
     loadFromStorage<Record<string, UserBadgeProgress>>(STORAGE_KEYS.PROGRESS, {
-      'early-riser': {
+      'a1b2c3d4-0001-4000-8000-000000000001': {
         id: 'user-chris_early-riser',
         userId: 'user-chris',
-        badgeId: 'early-riser',
+        badgeId: 'a1b2c3d4-0001-4000-8000-000000000001',
         status: 'awarded',
         awardedCount: 3,
         progress: {
@@ -93,10 +93,10 @@ export function App() {
         },
         awardedAt: Date.now() - 500000
       },
-      'proficient-cleaner': {
+      'a1b2c3d4-0002-4000-8000-000000000002': {
         id: 'user-chris_proficient-cleaner',
         userId: 'user-chris',
-        badgeId: 'proficient-cleaner',
+        badgeId: 'a1b2c3d4-0002-4000-8000-000000000002',
         status: 'awarded',
         upgradeTier: 2,
         progress: {
@@ -114,7 +114,7 @@ export function App() {
     loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [
       {
         id: 'nom-1',
-        badgeId: 'epic-bail',
+        badgeId: 'a1b2c3d4-0004-4000-8000-000000000004',
         nomineeUserId: 'user-taylor',
         nominatorUserId: 'user-sam',
         nomineeDisplayName: 'Taylor "CampChef" W.',
@@ -216,7 +216,8 @@ export function App() {
     alert(`Successfully synced ${count} badges, ${users.length} user accounts, and all progress to Firebase Database!`);
   };
 
-  const handleSaveBadge = (badge: Badge) => {
+  const handleSaveBadge = async (badge: Badge) => {
+    // 1. Update React state immediately by matching UUID
     setBadges(prev => {
       const exists = prev.some(b => b.id === badge.id);
       if (exists) {
@@ -224,7 +225,12 @@ export function App() {
       }
       return [badge, ...prev];
     });
-    cloudSaveBadge(badge);
+
+    // 2. Persist update in Firestore database & persistent cache by UUID
+    const success = await cloudSaveBadge(badge);
+    if (success) {
+      console.log(`[App] Badge update persisted to Firestore DB: ${badge.title} (${badge.id})`);
+    }
   };
 
   const handleDeleteBadge = (badgeId: string) => {

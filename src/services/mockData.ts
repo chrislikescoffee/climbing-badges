@@ -10,18 +10,19 @@ export const INITIAL_UPGRADE_TIERS: UpgradeTier[] = [
 
 export const INITIAL_BADGES: Badge[] = [
   {
-    id: 'early-riser',
+    id: 'a1b2c3d4-0001-4000-8000-000000000001',
     title: 'Early Riser',
     tagline: 'First one boiling water while everyone else snores.',
     description: 'Be out of bed and ready to go before all other members of the group are out of bed.',
     category: 'camping',
-    awardType: 'repeatable', // Can earn multiple times (x2, x3, x4...)
+    awardType: 'repeatable',
     iconName: 'Sunrise',
     isNominatable: true,
+    isNominationOnly: false,
     approvalMode: 'single_reviewer',
     requirements: [
       {
-        id: 'out-of-bed-first',
+        id: 'req_early_awake',
         title: 'Dawn Camp Awake',
         description: 'Prove you were brewing coffee or packing gear while the rest of the tents were silent.',
         targetCount: 1,
@@ -33,14 +34,15 @@ export const INITIAL_BADGES: Badge[] = [
     isActive: true
   },
   {
-    id: 'proficient-cleaner',
+    id: 'a1b2c3d4-0002-4000-8000-000000000002',
     title: 'Proficient Cleaner',
     tagline: 'Leave no trace, leave no gear behind.',
     description: 'Master anchor cleaning under varied conditions with clean rope management.',
     category: 'climbing',
-    awardType: 'upgradable', // Colored border tiers (Tier 1 Bronze, Tier 2 Silver, Tier 3 Gold...)
+    awardType: 'upgradable',
     iconName: 'ShieldCheck',
     isNominatable: false,
+    isNominationOnly: false,
     approvalMode: 'committee_vote',
     requirements: [
       {
@@ -70,7 +72,7 @@ export const INITIAL_BADGES: Badge[] = [
     isActive: true
   },
   {
-    id: 'dirtbag-barista',
+    id: 'a1b2c3d4-0003-4000-8000-000000000003',
     title: 'Dirtbag Barista',
     tagline: 'Life is too short for instant coffee at the crag.',
     description: 'Successfully brew freshly ground espresso or pour-over at the crag base or hanging belay.',
@@ -78,6 +80,7 @@ export const INITIAL_BADGES: Badge[] = [
     awardType: 'repeatable',
     iconName: 'Coffee',
     isNominatable: true,
+    isNominationOnly: false,
     approvalMode: 'single_reviewer',
     requirements: [
       {
@@ -93,15 +96,15 @@ export const INITIAL_BADGES: Badge[] = [
     isActive: true
   },
   {
-    id: 'epic-bail',
+    id: 'a1b2c3d4-0004-4000-8000-000000000004',
     title: 'Epic Bail',
-    isNominationOnly: true,
     tagline: 'The mountain will always be there tomorrow.',
     description: 'Make a sound judgment call to bail off a route or pack up camp due to weather, darkness, or good sense.',
     category: 'life_skills',
     awardType: 'repeatable',
     iconName: 'CornerUpLeft',
     isNominatable: true,
+    isNominationOnly: true,
     approvalMode: 'committee_vote',
     requirements: [
       {
@@ -117,20 +120,21 @@ export const INITIAL_BADGES: Badge[] = [
     isActive: true
   },
   {
-    id: 'campfire-maestro',
+    id: 'a1b2c3d4-0005-4000-8000-000000000005',
     title: 'Campfire Maestro',
     tagline: 'One match. Zero firestarter. Pure bushcraft.',
     description: 'Light a roaring campfire in challenging damp conditions using only single match and natural tinder.',
     category: 'camping',
-    awardType: 'upgradable',
+    awardType: 'single',
     iconName: 'Flame',
     isNominatable: true,
+    isNominationOnly: false,
     approvalMode: 'single_reviewer',
     requirements: [
       {
-        id: 'one-match-fire',
-        title: 'Single Match Fire',
-        description: 'Sustain campfire for over 1 hour starting from only 1 match.',
+        id: 'campfire-proof',
+        title: 'Single Match Light',
+        description: 'Ignite and sustain a stable cooking campfire using exactly one match.',
         targetCount: 1,
         evidenceType: 'photo_mandatory'
       }
@@ -138,90 +142,46 @@ export const INITIAL_BADGES: Badge[] = [
     createdBy: 'admin',
     createdAt: Date.now() - 6000000,
     isActive: true
-  },
-  {
-    id: 'whipper-survivor',
-    title: 'Whipper Survivor',
-    tagline: 'Catch air, not hospital beds.',
-    description: 'Take a clean, safe, leader fall of at least 3 meters on sport or trad with perfect belay catch.',
-    category: 'climbing',
-    awardType: 'single',
-    iconName: 'Zap',
-    isNominatable: true,
-    approvalMode: 'committee_vote',
-    requirements: [
-      {
-        id: 'clean-fall',
-        title: 'Airborne Flight',
-        description: 'Document or witness testimony of a safe leader fall taken with good technique.',
-        targetCount: 1,
-        evidenceType: 'text'
-      }
-    ],
-    createdBy: 'admin',
-    createdAt: Date.now() - 5000000,
-    isActive: true
   }
 ];
 
 export const MOCK_USERS: UserProfile[] = [
   {
     uid: 'user-chris',
-    email: 'chris@example.com',
-    displayName: 'Chris "Granite" H.',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Chris',
+    email: 'chris@safeclimbing.club',
+    displayName: 'Chris "SendIt" G.',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
     role: 'admin',
-    status: 'active',
-    createdAt: Date.now() - 20000000
-  },
-  {
-    uid: 'user-sam',
-    email: 'sam@example.com',
-    displayName: 'Sam "BelaySlave" P.',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Sam',
-    role: 'committee',
-    status: 'active',
-    createdAt: Date.now() - 18000000
-  },
-  {
-    uid: 'user-alex',
-    email: 'alex@example.com',
-    displayName: 'Alex "ChalkBag" D.',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Alex',
-    role: 'committee',
     status: 'active',
     createdAt: Date.now() - 15000000
   },
   {
-    uid: 'user-taylor',
-    email: 'taylor@example.com',
-    displayName: 'Taylor "CampChef" W.',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Taylor',
-    role: 'member',
+    uid: 'user-sam',
+    email: 'sam@safeclimbing.club',
+    displayName: 'Sam "BelaySlave" P.',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+    role: 'committee',
     status: 'active',
-    createdAt: Date.now() - 10000000
+    createdAt: Date.now() - 14000000
   },
   {
-    uid: 'user-jordan',
-    email: 'jordan@example.com',
-    displayName: 'Jordan "Whipper" K.',
-    avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=Jordan',
+    uid: 'user-alex',
+    email: 'alex@safeclimbing.club',
+    displayName: 'Alex "GearHead" K.',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+    role: 'committee',
+    status: 'active',
+    createdAt: Date.now() - 13000000
+  },
+  {
+    uid: 'user-taylor',
+    email: 'taylor@safeclimbing.club',
+    displayName: 'Taylor "CampChef" W.',
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
     role: 'member',
     status: 'active',
-    createdAt: Date.now() - 8000000
+    createdAt: Date.now() - 12000000
   }
 ];
 
-export const INITIAL_EVICTION_REQUESTS: CommitteeEvictionRequest[] = [
-  {
-    id: 'evict-req-1',
-    targetUserId: 'user-alex',
-    targetDisplayName: 'Alex "ChalkBag" D.',
-    targetEmail: 'alex@example.com',
-    requestedByUserId: 'user-sam',
-    requestedByDisplayName: 'Sam "BelaySlave" P.',
-    reason: 'Has not attended committee vote meetings in 6 months.',
-    status: 'pending',
-    createdAt: Date.now() - 86400000
-  }
-];
+export const INITIAL_EVICTION_REQUESTS: CommitteeEvictionRequest[] = [];
