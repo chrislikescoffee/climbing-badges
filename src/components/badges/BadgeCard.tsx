@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Sunrise, ShieldCheck, Coffee, CornerUpLeft, Flame, Zap, 
-  CheckCircle2, Clock, Lock, Users, Sparkles, UserPlus, Mountain, Heart, Compass 
+  CheckCircle2, Clock, Users, Sparkles, UserPlus, Mountain, Heart, Compass 
 } from 'lucide-react';
 import type { Badge, UserBadgeProgress, UserProfile, UpgradeTier } from '../../types';
 
@@ -69,7 +69,6 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
     totalCurrent += Math.min(req.targetCount, progress?.progress?.[req.id]?.currentCount || 0);
   });
   const progressPercent = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
-  const categoryDisplay = badge.category === 'life_skills' ? 'Life Skills' : badge.category;
 
   // Border and shadow dynamic styling
   const cardBorderStyle = isAwarded && badge.awardType === 'upgradable'
@@ -99,40 +98,9 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
         overflow: 'hidden'
       }}
     >
-      {/* Top Banner Tag & Status Pill */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <span style={{
-            fontSize: '0.7rem',
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.06em',
-            padding: '3px 8px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--bg-surface-elevated)',
-            color: badge.category === 'climbing' ? 'var(--emerald-moss)' : badge.category === 'camping' ? 'var(--amber-campfire)' : badge.category === 'life_skills' ? '#38bdf8' : 'var(--slate-rock)'
-          }}>
-            {categoryDisplay}
-          </span>
-
-          {badge.awardType === 'upgradable' && (
-            <span style={{
-              fontSize: '0.68rem',
-              fontWeight: 800,
-              textTransform: 'uppercase',
-              padding: '2px 6px',
-              borderRadius: 'var(--radius-sm)',
-              background: isAwarded ? `${tierColor}25` : 'rgba(255,255,255,0.06)',
-              color: isAwarded ? tierColor : 'var(--text-muted)',
-              border: `1px solid ${isAwarded ? tierColor : 'var(--border-subtle)'}`
-            }}>
-              {isAwarded ? `Tier ${currentTierLevel} • ${currentTierObj?.name}` : 'Upgradable'}
-            </span>
-          )}
-        </div>
-
-        {/* Status Pill & Multiplier (x2, x3...) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      {/* Top Row: Multiplier and Status Pill (Earnt / Under Review; No Locked, No Tags) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, minHeight: 24 }}>
+        <div>
           {showMultiplier && (
             <span style={{
               background: 'linear-gradient(135deg, #ffd700, #ff9800)',
@@ -147,7 +115,9 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
               x{count}
             </span>
           )}
+        </div>
 
+        <div>
           {isAwarded ? (
             <span style={{
               display: 'flex',
@@ -160,7 +130,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
               padding: '3px 8px',
               borderRadius: 'var(--radius-full)'
             }}>
-              <CheckCircle2 size={13} /> {badge.awardType === 'upgradable' ? `Tier ${currentTierLevel}` : 'Unlocked'}
+              <CheckCircle2 size={13} /> {badge.awardType === 'upgradable' ? `Tier ${currentTierLevel} Earnt` : 'Earnt'}
             </span>
           ) : isPending ? (
             <span style={{
@@ -176,31 +146,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
             }}>
               <Clock size={13} /> Under Review
             </span>
-          ) : progressPercent > 0 ? (
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: 'var(--chalk-white)',
-              background: 'var(--bg-surface-elevated)',
-              padding: '3px 8px',
-              borderRadius: 'var(--radius-full)'
-            }}>
-              {progressPercent}% Complete
-            </span>
-          ) : (
-            <span style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: '0.75rem',
-              color: 'var(--text-faint)'
-            }}>
-              <Lock size={12} /> Locked
-            </span>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -236,11 +182,16 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar & Percentage / Not Commenced */}
       <div style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 6 }}>
-          <span>{badge.requirements.length} requirement{badge.requirements.length > 1 ? 's' : ''}</span>
-          <span>{totalCurrent} / {totalTarget} done</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', marginBottom: 6 }}>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Progress</span>
+          <span style={{ 
+            fontWeight: 700, 
+            color: isAwarded ? 'var(--badge-gold)' : progressPercent > 0 ? '#38bdf8' : 'var(--text-faint)' 
+          }}>
+            {isAwarded ? '100%' : progressPercent > 0 ? `${progressPercent}%` : 'Not Commenced'}
+          </span>
         </div>
         <div style={{
           height: 6,
@@ -250,7 +201,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
         }}>
           <div style={{
             height: '100%',
-            width: `${progressPercent}%`,
+            width: `${isAwarded ? 100 : progressPercent}%`,
             background: isAwarded && badge.awardType === 'upgradable'
               ? `linear-gradient(90deg, ${tierColor}, var(--amber-campfire))`
               : isAwarded 
@@ -300,7 +251,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons: Review */}
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           onClick={() => onOpenDetails(badge)}
@@ -315,13 +266,7 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
             fontWeight: 600
           }}
         >
-          {isAwarded && badge.awardType === 'repeatable'
-            ? `Log for x${count + 1}`
-            : isAwarded && badge.awardType === 'upgradable'
-            ? `Upgrade to Tier ${currentTierLevel + 1}`
-            : isAwarded
-            ? 'View Badge'
-            : 'Track & Log Evidence'}
+          Review
         </button>
 
         {badge.isNominatable && (

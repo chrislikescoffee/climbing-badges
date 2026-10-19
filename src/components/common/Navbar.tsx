@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  Tent, Award, CheckSquare, Shield, User, Wifi, WifiOff, Cloud, CloudOff, 
+  Tent, Award, CheckSquare, Shield, Wifi, WifiOff, Cloud, CloudOff, 
   ChevronDown, Settings, Users, Palette 
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
@@ -77,9 +77,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <Tent size={22} color="#fff" />
         </div>
         <div>
-          <h1 style={{ fontSize: '1.2rem', lineHeight: 1.1, color: '#fff' }}>Crag & Camp</h1>
+          <h1 style={{ fontSize: '1.2rem', lineHeight: 1.1, color: '#fff' }}>Safe Climbing Club</h1>
           <span style={{ fontSize: '0.72rem', color: 'var(--amber-campfire)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            Badges & Milestones
+            Badge tracker
           </span>
         </div>
       </div>
@@ -153,7 +153,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           }}
         >
           <Shield size={16} />
-          <span>Patch Jacket</span>
+          <span>My Badges</span>
         </button>
 
         {/* Clean Admin Dropdown */}
@@ -302,46 +302,25 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </div>
         )}
-
-        <button
-          onClick={() => setActiveTab('profile')}
-          style={{
-            padding: '8px 14px',
-            borderRadius: 'var(--radius-sm)',
-            fontSize: '0.86rem',
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            color: activeTab === 'profile' ? '#fff' : 'var(--text-muted)',
-            background: activeTab === 'profile' ? 'var(--bg-surface-elevated)' : 'transparent',
-            border: activeTab === 'profile' ? '1px solid var(--border-highlight)' : '1px solid transparent'
-          }}
-        >
-          <User size={16} />
-          <span>Profile</span>
-        </button>
       </nav>
 
       {/* Right Side: Connectivity & Auth */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div
-          title={isCloudConnected ? 'Connected to Firebase Firestore' : 'Running in Local Storage / Offline Mode'}
+          title={isCloudConnected ? 'Cloud Synced - Connected to Firebase Firestore' : 'Local Mode - Running in Local Storage'}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 5,
-            padding: '5px 9px',
-            borderRadius: 'var(--radius-full)',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
             background: isCloudConnected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(148, 163, 184, 0.12)',
             border: isCloudConnected ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(148, 163, 184, 0.25)',
-            fontSize: '0.72rem',
-            fontWeight: 600,
             color: isCloudConnected ? '#38bdf8' : 'var(--text-muted)'
           }}
         >
-          {isCloudConnected ? <Cloud size={12} /> : <CloudOff size={12} />}
-          <span>{isCloudConnected ? 'Cloud Synced' : 'Local Mode'}</span>
+          {isCloudConnected ? <Cloud size={15} /> : <CloudOff size={15} />}
         </div>
 
         <div 
@@ -349,18 +328,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '5px 9px',
-            borderRadius: 'var(--radius-full)',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+            borderRadius: '50%',
             background: isOnline ? 'rgba(46, 125, 50, 0.15)' : 'rgba(255, 152, 0, 0.2)',
             border: isOnline ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid rgba(255, 152, 0, 0.5)',
-            fontSize: '0.72rem',
-            fontWeight: 600,
             color: isOnline ? 'var(--emerald-moss)' : 'var(--amber-campfire)'
           }}
         >
-          {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
-          <span>{isOnline ? 'Online' : `Crag Queue (${pendingOfflineCount})`}</span>
+          {isOnline ? <Wifi size={15} /> : <WifiOff size={15} />}
         </div>
 
         {currentUser ? (
@@ -374,7 +351,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               padding: '4px 10px 4px 6px',
               borderRadius: 'var(--radius-full)',
               background: 'var(--bg-surface-elevated)',
-              border: isCommittee ? '1px solid var(--amber-campfire)' : '1px solid var(--border-subtle)'
+              border: activeTab === 'profile' ? '2px solid var(--amber-campfire)' : isCommittee ? '1px solid rgba(255, 152, 0, 0.4)' : '1px solid var(--border-subtle)', boxShadow: activeTab === 'profile' ? '0 0 12px rgba(255, 152, 0, 0.4)' : 'none'
             }}
           >
             <img 
