@@ -956,6 +956,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         onClose={() => setInspectingBadge(null)}
         onNominate={b => setNominatingBadge(b)}
         onLogEvidence={handleLogEvidence}
+        onSignIn={handleGoogleSignIn}
       />
 
       <NominateModal
@@ -964,6 +965,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         users={users}
         onClose={() => setNominatingBadge(null)}
         onSubmitNomination={handleSubmitNomination}
+        onSignIn={handleGoogleSignIn}
       />
 
       <ShareCardModal
