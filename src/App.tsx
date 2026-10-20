@@ -239,7 +239,9 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   const handleSignOut = async () => {
     await signOutUser();
     setCurrentUserId('');
+    setUserProgress({});
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.removeItem(STORAGE_KEYS.PROGRESS);
     setActiveTab('badges');
     alert('You have signed out.');
   };
@@ -448,9 +450,9 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       id: 'log_' + Date.now(),
       timestamp: Date.now(),
       countDelta,
-      text,
-      mandatoryPhotoUrl,
-      optionalPhotoUrls,
+      text: text?.trim() || '',
+      mandatoryPhotoUrl: mandatoryPhotoUrl || '',
+      optionalPhotoUrls: optionalPhotoUrls || [],
       photoUrls: allPhotos,
       recordedBy: currentUser.displayName
     };
@@ -684,7 +686,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   // Real-time synchronization of active user's badge progress from Cloud Firestore
   useEffect(() => {
     if (!currentUserId) {
-      setUserProgress({});
+      // Do not wipe local progress on mount before auth resolves
       return;
     }
 
@@ -693,8 +695,11 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       currentUserId,
       (cloudProg) => {
         console.log(`[Sync] Real-time cloud progress loaded for ${currentUserId}: ${Object.keys(cloudProg).length} items`);
-        setUserProgress(cloudProg);
-        localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(cloudProg));
+        setUserProgress(prev => {
+          const merged = { ...prev, ...cloudProg };
+          localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(merged));
+          return merged;
+        });
       },
       userProgress,
       (err) => console.error('[Sync] Error loading user progress from cloud:', err)

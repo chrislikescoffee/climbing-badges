@@ -301,7 +301,7 @@ export async function cloudDeleteUser(userId: string): Promise<void> {
 export async function cloudSaveUser(user: UserProfile): Promise<void> {
   if (!isFirebaseConfigured) return;
   try {
-    await setDoc(doc(db, COLLECTIONS.USERS, user.uid), user, { merge: true });
+    await setDoc(doc(db, COLLECTIONS.USERS, user.uid), sanitizeForFirestore(user), { merge: true });
     console.log(`[Firestore] Saved user account "${user.displayName}" to database.`);
   } catch (e) {
     console.error('[Firestore] Error saving user:', e);
@@ -340,7 +340,7 @@ export function subscribeToNominations(
 export async function cloudSaveNomination(nomination: Nomination): Promise<void> {
   if (!isFirebaseConfigured) return;
   try {
-    await setDoc(doc(db, COLLECTIONS.NOMINATIONS, nomination.id), nomination, { merge: true });
+    await setDoc(doc(db, COLLECTIONS.NOMINATIONS, nomination.id), sanitizeForFirestore(nomination), { merge: true });
   } catch (e) {
     console.error('[Firestore] Error saving nomination:', e);
   }
@@ -378,7 +378,7 @@ export function subscribeToEvictions(
 export async function cloudSaveEviction(request: CommitteeEvictionRequest): Promise<void> {
   if (!isFirebaseConfigured) return;
   try {
-    await setDoc(doc(db, COLLECTIONS.EVICTIONS, request.id), request, { merge: true });
+    await setDoc(doc(db, COLLECTIONS.EVICTIONS, request.id), sanitizeForFirestore(request), { merge: true });
   } catch (e) {
     console.error('[Firestore] Error saving eviction request:', e);
   }
@@ -445,8 +445,9 @@ export async function cloudSaveProgress(progress: UserBadgeProgress): Promise<vo
   if (!isFirebaseConfigured) return;
   try {
     const docId = progress.id || `${progress.userId}_${progress.badgeId}`;
-    await setDoc(doc(db, COLLECTIONS.PROGRESS, docId), progress, { merge: true });
-    console.log(`[Firestore] Uploaded badge progress for user "${progress.userId}", badge "${progress.badgeId}"`);
+    const cleanProgress = sanitizeForFirestore(progress);
+    await setDoc(doc(db, COLLECTIONS.PROGRESS, docId), cleanProgress, { merge: true });
+    console.log(`[Firestore] Successfully saved badge progress for user "${progress.userId}", badge "${progress.badgeId}" to cloud DB!`);
   } catch (e) {
     console.error('[Firestore] Error saving progress:', e);
   }
