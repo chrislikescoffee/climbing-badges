@@ -15,7 +15,7 @@ interface NavbarProps {
   onGoogleSignIn?: () => void;
   onSignOut?: () => void;
   isOnline: boolean;
-  pendingOfflineCount: number;
+  pendingOfflineCount?: number;
   pendingReviewsCount: number;
   pendingEvictionsCount: number;
   isCloudConnected?: boolean;
@@ -29,7 +29,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onGoogleSignIn,
   onSignOut,
   isOnline,
-  pendingOfflineCount,
   pendingReviewsCount,
   pendingEvictionsCount,
   isCloudConnected = false
@@ -346,7 +345,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Wifi Indicator */}
           <div 
-            title={isOnline ? 'Online - Live Sync Active' : `Offline at the Crag! ${pendingOfflineCount} items queued`}
+            title={isOnline ? 'Online - Live Sync Active' : 'Offline at the Crag (Auto-syncs when online)'}
             style={{
               display: 'flex',
               alignItems: 'center',

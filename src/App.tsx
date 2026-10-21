@@ -1,16 +1,9 @@
-import { uploadEvidencePhoto } from './services/storageSync';
 import { Award, User } from 'lucide-react';
 import { signInWithGoogle, signOutUser, subscribeToAuth } from './services/authService';
 import { CreateAccountModal } from './components/auth/CreateAccountModal';
-import {
-  subscribeToBadges, cloudSaveBadge, cloudDeleteBadge, cloudForceSyncAllBadges,
-  subscribeToUpgradeTiers, cloudSaveUpgradeTier,
-  subscribeToUsers, cloudSaveUser, cloudDeleteUser,
-  subscribeToNominations, cloudSaveNomination,
-  subscribeToEvictions, cloudSaveEviction,
-  subscribeToUserProgress, cloudSaveProgress
-} from './services/firestoreSync';
+import { clubStore } from './services/store';
 import { isFirebaseConfigured } from './services/firebase';
+import { recordEvidence, awardFromNomination } from './domain/progression/progressionEngine';
 
 import { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
@@ -30,7 +23,6 @@ import { ProfileView } from './components/profile/ProfileView';
 
 import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
 import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier } from './types';
-import { getQueueItems } from './services/offlineQueue';
 import { sounds } from './services/audio';
 
 // LocalStorage Persistence Keys
@@ -80,7 +72,6 @@ const migrateAvatars = (userList: UserProfile[]): UserProfile[] => {
 export function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('badges');
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(0);
   const [isCloudConnected, setIsCloudConnected] = useState<boolean>(false);
 
   // 1. Persistent Users & Active Account
@@ -184,8 +175,6 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    getQueueItems().then(items => setPendingOfflineCount(items.length));
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -212,12 +201,12 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       ...updated
     };
     setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updatedUser : u));
-    cloudSaveUser(updatedUser);
+    clubStore.saveUser(updatedUser);
   };
 
 
   const handleForceSyncBadges = async () => {
-    const count = await cloudForceSyncAllBadges(badges, users, userProgress);
+    const count = await clubStore.forceSyncAll(badges, users, userProgress);
     alert(`Successfully synced ${count} badges, ${users.length} user accounts, and all progress to Firebase Database!`);
   };
 
@@ -251,7 +240,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     setUsers(prev => [newUser, ...prev]);
 
     // 2. Upload and persist in Firestore cb_users
-    await cloudSaveUser(newUser);
+    await clubStore.saveUser(newUser);
 
     // 3. Switch active user if requested
     if (switchToUser) {
@@ -273,7 +262,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     });
 
     // 2. Persist update in Firestore database & persistent cache by UUID
-    const success = await cloudSaveBadge(badge);
+    const success = await clubStore.saveBadge(badge);
     if (success) {
       console.log(`[App] Badge update persisted to Firestore DB: ${badge.title} (${badge.id})`);
     }
@@ -282,14 +271,14 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   const handleDeleteBadge = (badgeId: string) => {
     const targetBadge = badges.find(b => b.id === badgeId);
     setBadges(prev => prev.filter(b => b.id !== badgeId));
-    cloudDeleteBadge(badgeId, targetBadge?.imageUrl);
+    clubStore.deleteBadge(badgeId, targetBadge?.imageUrl);
   };
 
   const handleToggleActiveBadge = (badgeId: string) => {
     setBadges(prev => prev.map(b => {
       if (b.id === badgeId) {
         const updated = { ...b, isActive: !b.isActive };
-        cloudSaveBadge(updated);
+        clubStore.saveBadge(updated);
         return updated;
       }
       return b;
@@ -301,7 +290,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     setUsers(prev => prev.map(u => {
       if (u.uid === userId) {
         const updated = { ...u, role: 'committee' as const };
-        cloudSaveUser(updated);
+        clubStore.saveUser(updated);
         return updated;
       }
       return u;
@@ -323,7 +312,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       createdAt: Date.now()
     };
     setEvictionRequests(prev => [newReq, ...prev]);
-    cloudSaveEviction(newReq);
+    clubStore.saveEviction(newReq);
     alert('Eviction request created. A second Committee member must approve to complete the removal.');
   };
 
@@ -335,7 +324,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     setUsers(prev => prev.map(u => {
       if (u.uid === req.targetUserId) {
         const updated = { ...u, role: 'member' as const };
-        cloudSaveUser(updated);
+        clubStore.saveUser(updated);
         return updated;
       }
       return u;
@@ -349,7 +338,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       resolvedByDisplayName: currentUser.displayName
     };
     setEvictionRequests(prev => prev.map(r => r.id === requestId ? resolvedReq : r));
-    cloudSaveEviction(resolvedReq);
+    clubStore.saveEviction(resolvedReq);
 
     sounds.playFanfare();
     alert(`Confirmed: ${req.targetDisplayName} has been removed from Committee (2nd approval verified).`);
@@ -359,7 +348,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     setEvictionRequests(prev => prev.map(r => {
       if (r.id === requestId) {
         const updated = { ...r, status: 'rejected' as const, resolvedAt: Date.now() };
-        cloudSaveEviction(updated);
+        clubStore.saveEviction(updated);
         return updated;
       }
       return r;
@@ -369,14 +358,14 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   
   const handleDeleteUserPermanently = async (userId: string) => {
     setUsers(prev => prev.filter(u => u.uid !== userId));
-    await cloudDeleteUser(userId);
+    await clubStore.deleteUser(userId);
   };
 
   const handleEvictFromClub = (userId: string) => {
     setUsers(prev => prev.map(u => {
       if (u.uid === userId) {
         const updated = { ...u, status: 'evicted' as const };
-        cloudSaveUser(updated);
+        clubStore.saveUser(updated);
         return updated;
       }
       return u;
@@ -387,7 +376,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     setUsers(prev => prev.map(u => {
       if (u.uid === userId) {
         const updated = { ...u, status: 'active' as const };
-        cloudSaveUser(updated);
+        clubStore.saveUser(updated);
         return updated;
       }
       return u;
@@ -411,105 +400,42 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     // 1. Upload & compress proof photos to Cloud Storage
     let mandatoryPhotoUrl: string | undefined = undefined;
     if (mandatoryPhoto) {
-      mandatoryPhotoUrl = await uploadEvidencePhoto(mandatoryPhoto, currentUser.uid, badgeId);
+      mandatoryPhotoUrl = await clubStore.uploadEvidenceImage(mandatoryPhoto, currentUser.uid, badgeId);
     }
 
     const optionalPhotoUrls: string[] = [];
     if (optionalPhotos && optionalPhotos.length > 0) {
       for (const p of optionalPhotos) {
-        const u = await uploadEvidencePhoto(p, currentUser.uid, badgeId);
+        const u = await clubStore.uploadEvidenceImage(p, currentUser.uid, badgeId);
         optionalPhotoUrls.push(u);
       }
     }
 
-    const allPhotos = [mandatoryPhotoUrl, ...optionalPhotoUrls].filter(Boolean) as string[];
-
-    const existing = userProgress[badgeId] || {
-      id: `${currentUser.uid}_${badgeId}`,
-      userId: currentUser.uid,
-      badgeId,
-      status: 'in_progress',
-      progress: {},
-      awardedCount: 0,
-      upgradeTier: 1
-    };
-
-    const reqProg = existing.progress[requirementId] || {
-      requirementId,
-      currentCount: 0,
-      completed: false,
-      evidenceLogs: []
-    };
-
-    const newCount = reqProg.currentCount + countDelta;
     const targetBadge = badges.find(b => b.id === badgeId);
-    const reqDef = targetBadge?.requirements.find(r => r.id === requirementId);
-    const isReqDone = targetBadge ? newCount >= (reqDef?.targetCount || 1) : false;
+    if (!targetBadge) return;
 
-    const newEvidenceLog = {
-      id: 'log_' + Date.now(),
-      timestamp: Date.now(),
-      countDelta,
-      text: text?.trim() || '',
-      mandatoryPhotoUrl: mandatoryPhotoUrl || '',
-      optionalPhotoUrls: optionalPhotoUrls || [],
-      photoUrls: allPhotos,
-      recordedBy: currentUser.displayName
-    };
+    const { updatedProgress: updatedBadgeProg, event } = recordEvidence(
+      targetBadge,
+      userProgress[badgeId],
+      {
+        userId: currentUser.uid,
+        userName: currentUser.displayName,
+        requirementId,
+        countDelta,
+        text,
+        mandatoryPhotoUrl,
+        optionalPhotoUrls
+      },
+      upgradeTiers.length
+    );
 
-    const updatedReqProg = {
-      ...reqProg,
-      currentCount: newCount,
-      completed: isReqDone,
-      evidenceLogs: [...reqProg.evidenceLogs, newEvidenceLog]
-    };
-
-    const updatedProgressMap = {
-      ...existing.progress,
-      [requirementId]: updatedReqProg
-    };
-
-    let allCompleted = false;
-    if (targetBadge) {
-      allCompleted = targetBadge.requirements.every(req => {
-        const p = updatedProgressMap[req.id];
-        return p && p.currentCount >= req.targetCount;
-      });
+    if (event === 'awarded') {
+      sounds.playFanfare();
+      confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
     }
-
-    let newStatus = existing.status;
-    let newAwardedCount = existing.awardedCount || 0;
-    let newUpgradeTier = existing.upgradeTier || 1;
-
-    if (allCompleted) {
-      if (targetBadge?.approvalMode === 'self') {
-        newStatus = 'awarded';
-        sounds.playFanfare();
-        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
-
-        if (targetBadge.awardType === 'repeatable') {
-          newAwardedCount = Math.max(1, newAwardedCount) + 1;
-        } else if (targetBadge.awardType === 'upgradable') {
-          newUpgradeTier = Math.min(upgradeTiers.length, (existing.upgradeTier || 1) + 1);
-        } else {
-          newAwardedCount = 1;
-        }
-      } else {
-        newStatus = 'pending_review';
-      }
-    }
-
-    const updatedBadgeProg: UserBadgeProgress = {
-      ...existing,
-      status: newStatus,
-      progress: updatedProgressMap,
-      awardedCount: newAwardedCount,
-      upgradeTier: newUpgradeTier,
-      awardedAt: newStatus === 'awarded' ? Date.now() : existing.awardedAt
-    };
 
     // 2. Persist to Cloud Firestore in named database
-    await cloudSaveProgress(updatedBadgeProg);
+    await clubStore.saveProgress(updatedBadgeProg);
 
     // 3. Update local state
     setUserProgress(prev => ({
@@ -542,7 +468,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     };
 
     setNominations(prev => [newNom, ...prev]);
-    cloudSaveNomination(newNom);
+    clubStore.saveNomination(newNom);
     alert('Nomination submitted! The Committee will review and vote.');
   };
 
@@ -563,26 +489,21 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
 
         const targetBadge = badges.find(b => b.id === nom.badgeId);
-        const existingNomineeProg = userProgress[nom.badgeId];
-        const newCount = targetBadge?.awardType === 'repeatable' ? (existingNomineeProg?.awardedCount || 1) + 1 : 1;
-        const newTier = targetBadge?.awardType === 'upgradable' ? Math.min(upgradeTiers.length, (existingNomineeProg?.upgradeTier || 1) + 1) : 1;
-
-        const updatedNomineeProg: UserBadgeProgress = {
-          id: `${nom.nomineeUserId}_${nom.badgeId}`,
-          userId: nom.nomineeUserId,
-          badgeId: nom.badgeId,
-          status: 'awarded',
-          awardedCount: newCount,
-          upgradeTier: newTier,
-          progress: {},
-          awardedAt: Date.now(),
-          nominationId: nom.id
-        };
-        cloudSaveProgress(updatedNomineeProg);
-        setUserProgress(curr => ({
-          ...curr,
-          [nom.badgeId]: updatedNomineeProg
-        }));
+        if (targetBadge) {
+          const { updatedProgress: updatedNomineeProg } = awardFromNomination(
+            targetBadge,
+            userProgress[nom.badgeId],
+            nom.id,
+            nom.nomineeUserId,
+            Date.now(),
+            upgradeTiers.length
+          );
+          clubStore.saveProgress(updatedNomineeProg);
+          setUserProgress(curr => ({
+            ...curr,
+            [nom.badgeId]: updatedNomineeProg
+          }));
+        }
       }
 
       return {
@@ -595,7 +516,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
 
   const earntBadgeIds = new Set(
     Object.entries(userProgress)
-      .filter(([_, p]) => p.status === 'awarded')
+      .filter(([, p]) => p.status === 'awarded')
       .map(([bId]) => bId)
   );
 
@@ -622,7 +543,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     console.log('[Firestore] Connecting real-time listeners for Climbing Badges...');
     let activeSubscriptions = true;
 
-    const unsubBadges = subscribeToBadges(
+    const unsubBadges = clubStore.subscribeBadges(
       (cloudBadges) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
@@ -632,7 +553,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       () => setIsCloudConnected(false)
     );
 
-    const unsubTiers = subscribeToUpgradeTiers(
+    const unsubTiers = clubStore.subscribeUpgradeTiers(
       (cloudTiers) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
@@ -642,7 +563,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       () => setIsCloudConnected(false)
     );
 
-    const unsubUsers = subscribeToUsers(
+    const unsubUsers = clubStore.subscribeUsers(
       (cloudUsers) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
@@ -652,24 +573,20 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       () => setIsCloudConnected(false)
     );
 
-    const unsubNoms = subscribeToNominations(
+    const unsubNoms = clubStore.subscribeNominations(
       (cloudNoms) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
         setNominations(cloudNoms);
-      },
-      [],
-      () => setIsCloudConnected(false)
+      }
     );
 
-    const unsubEvict = subscribeToEvictions(
+    const unsubEvict = clubStore.subscribeEvictions(
       (cloudEvicts) => {
         if (!activeSubscriptions) return;
         setIsCloudConnected(true);
         setEvictionRequests(cloudEvicts);
-      },
-      INITIAL_EVICTION_REQUESTS,
-      () => setIsCloudConnected(false)
+      }
     );
 
     return () => {
@@ -691,7 +608,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     }
 
     console.log('[Sync] Subscribing to Cloud Firestore progress for user:', currentUserId);
-    const unsub = subscribeToUserProgress(
+    const unsub = clubStore.subscribeUserProgress(
       currentUserId,
       (cloudProg) => {
         console.log(`[Sync] Real-time cloud progress loaded for ${currentUserId}: ${Object.keys(cloudProg).length} items`);
@@ -700,9 +617,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
           localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(merged));
           return merged;
         });
-      },
-      userProgress,
-      (err) => console.error('[Sync] Error loading user progress from cloud:', err)
+      }
     );
 
     return () => unsub();
@@ -721,7 +636,6 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         onGoogleSignIn={handleGoogleSignIn}
         onSignOut={handleSignOut}
         isOnline={isOnline}
-        pendingOfflineCount={pendingOfflineCount}
         pendingReviewsCount={nominations.filter(n => n.status === 'pending').length}
         pendingEvictionsCount={pendingEvictions.length}
         isCloudConnected={isCloudConnected}
@@ -884,7 +798,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
               tiers={upgradeTiers}
               onSaveTiers={(newTiers) => {
                 setUpgradeTiers(newTiers);
-                newTiers.forEach(t => cloudSaveUpgradeTier(t));
+                newTiers.forEach(t => clubStore.saveUpgradeTier(t));
               }}
             />
           ) : (

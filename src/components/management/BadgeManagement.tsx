@@ -1,24 +1,11 @@
-
-function generateBadgeUUID(): string {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
-  }
-  return 'badge-' + 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-import { compressImage } from '../../utils/imageCompressor';
-import { uploadBadgeImageToStorage } from '../../services/firestoreSync';
-import React, { useState } from 'react';
+import React from 'react';
 import { 
   Plus, Edit, Trash2, Sunrise, ShieldCheck, Coffee, CornerUpLeft, 
   Flame, Zap, Mountain, Heart, Compass, Check, X, Award, Upload, Repeat, Layers 
 } from 'lucide-react';
-import type { Badge, BadgeCategory, ApprovalMode, EvidenceType, BadgeRequirement, BadgeAwardType } from '../../types';
+import type { Badge, BadgeCategory, ApprovalMode, EvidenceType } from '../../types';
 import { sounds } from '../../services/audio';
+import { useBadgeDraft } from '../../domain/authoring/badgeDraft';
 
 interface BadgeManagementProps {
   badges: Badge[];
@@ -39,150 +26,36 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
   onToggleActive,
   onForceSync
 }) => {
-  const [editingBadge, setEditingBadge] = useState<Badge | null>(null);
-  const [isCreating, setIsCreating] = useState<boolean>(false);
-
-  // Form State
-  const [id, setId] = useState('');
-  const [title, setTitle] = useState('');
-  const [tagline, setTagline] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<BadgeCategory>('climbing');
-  const [awardType, setAwardType] = useState<BadgeAwardType>('single');
-  const [iconName, setIconName] = useState('Mountain');
-  const [imageUrl, setImageUrl] = useState('');
-  const [isNominatable, setIsNominatable] = useState(true);
-  const [isNominationOnly, setIsNominationOnly] = useState(false);
-  const [approvalMode, setApprovalMode] = useState<ApprovalMode>('committee_vote');
-  const [requirements, setRequirements] = useState<BadgeRequirement[]>([
-    {
-      id: 'req_1',
-      title: 'Initial Requirement',
-      description: 'Detail what must be achieved...',
-      targetCount: 1,
-      evidenceType: 'checkbox'
-    }
-  ]);
-
-  const openCreateModal = () => {
-    setIsCreating(true);
-    setEditingBadge(null);
-    setId(generateBadgeUUID());
-    setTitle('');
-    setTagline('');
-    setDescription('');
-    setCategory('climbing');
-    setAwardType('single');
-    setIconName('Mountain');
-    setImageUrl('');
-    setIsNominatable(true);
-    setIsNominationOnly(false);
-    setApprovalMode('committee_vote');
-    setRequirements([
-      {
-        id: 'req_' + Date.now(),
-        title: '',
-        description: '',
-        targetCount: 1,
-        evidenceType: 'checkbox'
-      }
-    ]);
-  };
-
-  const openEditModal = (badge: Badge) => {
-    setIsCreating(false);
-    setEditingBadge(badge);
-    setId(badge.id);
-    setTitle(badge.title);
-    setTagline(badge.tagline);
-    setDescription(badge.description);
-    setCategory(badge.category);
-    setAwardType(badge.awardType || 'single');
-    setIconName(badge.iconName);
-    setImageUrl(badge.imageUrl || '');
-    setIsNominatable(badge.isNominatable);
-    setIsNominationOnly(Boolean(badge.isNominationOnly));
-    setApprovalMode(badge.approvalMode);
-    setRequirements(badge.requirements.map(r => ({ ...r })));
-  };
-
-  const closeModal = () => {
-    setIsCreating(false);
-    setEditingBadge(null);
-  };
+  const {
+    isOpen,
+    isCreating,
+    editingBadge,
+    draft,
+    startCreate,
+    startEdit,
+    closeDraft,
+    updateField,
+    addRequirement,
+    removeRequirement,
+    updateRequirement,
+    handleCustomImageFile,
+    saveDraft
+  } = useBadgeDraft();
 
   const handleCustomIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      try {
-        const compressed = await compressImage(file, 256, 256, 0.85);
-        setImageUrl(compressed);
-      } catch (err) {
-        console.error('Image compression failed, using direct reader:', err);
-      }
+      await handleCustomImageFile(file);
     }
-  };
-
-  const handleAddRequirement = () => {
-    setRequirements(prev => [
-      ...prev,
-      {
-        id: 'req_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
-        title: '',
-        description: '',
-        targetCount: 1,
-        evidenceType: 'checkbox'
-      }
-    ]);
-  };
-
-  const handleRemoveRequirement = (index: number) => {
-    setRequirements(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleReqChange = (index: number, field: keyof BadgeRequirement, value: any) => {
-    setRequirements(prev => prev.map((req, i) => i === index ? { ...req, [field]: value } : req));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || requirements.length === 0) {
-      alert('Please provide a title and at least one requirement!');
-      return;
+    const finalBadge = await saveDraft();
+    if (finalBadge) {
+      sounds.playCarabinerClick();
+      onSaveBadge(finalBadge);
     }
-
-    const badgeId = id || generateBadgeUUID();
-    let finalImageUrl = imageUrl.trim() || undefined;
-    if (finalImageUrl && finalImageUrl.startsWith('data:')) {
-      finalImageUrl = await uploadBadgeImageToStorage(badgeId, finalImageUrl);
-    }
-
-    const badgeData: Badge = {
-      id: badgeId,
-      title: title.trim(),
-      tagline: tagline.trim(),
-      description: description.trim(),
-      category,
-      awardType,
-      iconName,
-      imageUrl: finalImageUrl,
-      isNominatable,
-      isNominationOnly,
-      approvalMode,
-      requirements: requirements.map((r, i) => ({
-        ...r,
-        id: r.id || (`req_${i + 1}`),
-        title: r.title.trim() || `Requirement ${i + 1}`,
-        targetCount: Math.max(1, Number(r.targetCount) || 1)
-      })),
-      createdBy: editingBadge ? editingBadge.createdBy : 'committee',
-      createdAt: editingBadge ? editingBadge.createdAt : Date.now(),
-      isActive: editingBadge ? editingBadge.isActive : true
-    };
-
-    sounds.playCarabinerClick();
-    onSaveBadge(badgeData);
-    closeModal();
   };
 
   const renderIconPreview = (b: Badge, size = 20) => {
@@ -279,7 +152,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
           )}
 
           <button
-            onClick={openCreateModal}
+            onClick={startCreate}
             style={{
               padding: '10px 18px',
               borderRadius: 'var(--radius-sm)',
@@ -299,80 +172,118 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
         </div>
       </div>
 
-      {/* Badges Table / List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Badges List */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
         {badges.map(b => (
           <div 
             key={b.id} 
             className="glass-panel"
             style={{
-              padding: '18px 22px',
+              padding: 20,
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: 16,
-              opacity: b.isActive ? 1 : 0.6
+              border: b.isActive ? '1px solid var(--border-subtle)' : '1px dashed rgba(255, 255, 255, 0.1)',
+              opacity: b.isActive ? 1 : 0.65
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-highlight)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--amber-campfire)',
-                overflow: 'hidden'
-              }}>
-                {renderIconPreview(b, 26)}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-surface-elevated)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--amber-campfire)',
+                  border: '1px solid var(--border-subtle)',
+                  overflow: 'hidden'
+                }}>
+                  {renderIconPreview(b, 24)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {b.title}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                      background: 'rgba(255, 152, 0, 0.15)',
+                      color: 'var(--amber-campfire)',
+                      fontWeight: 600,
+                      textTransform: 'uppercase'
+                    }}>
+                      {b.category}
+                    </span>
+
+                    {/* Award Type Badge */}
+                    {b.awardType === 'repeatable' && (
+                      <span style={{
+                        fontSize: '0.68rem',
+                        padding: '2px 7px',
+                        borderRadius: 10,
+                        background: 'rgba(255, 215, 0, 0.15)',
+                        color: 'var(--badge-gold)',
+                        border: '1px solid rgba(255, 215, 0, 0.3)',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}>
+                        <Repeat size={10} /> Repeatable (x2, x3)
+                      </span>
+                    )}
+
+                    {b.awardType === 'upgradable' && (
+                      <span style={{
+                        fontSize: '0.68rem',
+                        padding: '2px 7px',
+                        borderRadius: 10,
+                        background: 'rgba(6, 182, 212, 0.15)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(6, 182, 212, 0.3)',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3
+                      }}>
+                        <Layers size={10} /> Upgradable Tiers
+                      </span>
+                    )}
+
+                    {!b.isActive && (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        padding: '2px 8px',
+                        borderRadius: 10,
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        color: 'var(--text-muted)'
+                      }}>
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <h3 style={{ fontSize: '1.1rem', color: '#fff' }}>{b.title}</h3>
-                  <span style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    padding: '2px 6px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface-elevated)',
-                    color: b.category === 'life_skills' ? '#38bdf8' : 'var(--text-muted)'
-                  }}>
-                    {b.category === 'life_skills' ? 'Life Skills' : b.category}
-                  </span>
 
-                  {/* Award Type Tag */}
-                  {b.awardType === 'repeatable' ? (
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'rgba(255, 215, 0, 0.2)', color: 'var(--badge-gold)', padding: '2px 6px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Repeat size={12} /> Repeatable (x2, x3...)
-                    </span>
-                  ) : b.awardType === 'upgradable' ? (
-                    <span style={{ fontSize: '0.68rem', fontWeight: 800, background: 'rgba(6, 182, 212, 0.2)', color: '#38bdf8', padding: '2px 6px', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Layers size={12} /> Upgradable (Colored Borders)
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-faint)' }}>Single Award</span>
-                  )}
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 12, lineHeight: 1.4 }}>
+                {b.description}
+              </p>
 
-                  {!b.isActive && (
-                    <span style={{ fontSize: '0.68rem', background: 'rgba(255, 0, 0, 0.2)', color: '#ff6b6b', padding: '2px 6px', borderRadius: 'var(--radius-sm)' }}>
-                      Inactive
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                  Assessment: <strong style={{ color: 'var(--amber-campfire)' }}>
-                    {b.approvalMode === 'committee_vote' ? 'Majority Committee Vote' : b.approvalMode === 'single_reviewer' ? 'Approve (One Member)' : 'Self Assess'}
-                  </strong> • {b.requirements.length} requirement{b.requirements.length > 1 ? 's' : ''} • {b.isNominationOnly ? 'Nominated Only (No Self-Log)' : b.isNominatable ? 'Nominatable' : 'Self-log only'}
-                </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: 16 }}>
+                <div>• {b.requirements.length} requirement{b.requirements.length !== 1 ? 's' : ''}</div>
+                <div>• Approval: {b.approvalMode === 'committee_vote' ? 'Committee Vote' : b.approvalMode === 'single_reviewer' ? 'Single Reviewer' : 'Self Approval'}</div>
+                <div>• Nomination: {b.isNominationOnly ? 'Nominated Only' : b.isNominatable ? 'Self or Nominate' : 'Self-Log Only'}</div>
               </div>
             </div>
 
-            {/* Actions */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
               <button
                 onClick={() => onToggleActive(b.id)}
                 title={b.isActive ? 'Deactivate Badge' : 'Activate Badge'}
@@ -390,7 +301,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
               </button>
 
               <button
-                onClick={() => openEditModal(b)}
+                onClick={() => startEdit(b)}
                 title="Edit Badge"
                 style={{
                   padding: '7px 12px',
@@ -419,8 +330,9 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 style={{
                   padding: '7px 10px',
                   borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(255, 0, 0, 0.1)',
-                  border: '1px solid rgba(255, 0, 0, 0.2)',
+                  fontSize: '0.8rem',
+                  background: 'rgba(255, 77, 77, 0.1)',
+                  border: '1px solid rgba(255, 77, 77, 0.25)',
                   color: '#ff6b6b'
                 }}
               >
@@ -432,7 +344,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
       </div>
 
       {/* Create / Edit Modal */}
-      {(isCreating || editingBadge) && (
+      {isOpen && (
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -458,7 +370,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
             }}
           >
             <button 
-              onClick={closeModal}
+              onClick={closeDraft}
               style={{ position: 'absolute', top: 18, right: 18, color: 'var(--text-muted)' }}
             >
               <X size={20} />
@@ -479,16 +391,16 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                     type="text"
                     required
                     placeholder="e.g. Master Rappeller"
-                    value={title}
-                    onChange={e => setTitle(e.target.value)}
+                    value={draft.title}
+                    onChange={e => updateField('title', e.target.value)}
                     style={{ width: '100%' }}
                   />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>Category</label>
                   <select
-                    value={category}
-                    onChange={e => setCategory(e.target.value as BadgeCategory)}
+                    value={draft.category}
+                    onChange={e => updateField('category', e.target.value as BadgeCategory)}
                     style={{ width: '100%' }}
                   >
                     <option value="climbing">Climbing</option>
@@ -513,13 +425,13 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                   <button
                     type="button"
-                    onClick={() => setAwardType('single')}
+                    onClick={() => updateField('awardType', 'single')}
                     style={{
                       padding: 10,
                       borderRadius: 'var(--radius-sm)',
-                      background: awardType === 'single' ? 'rgba(255,255,255,0.15)' : 'var(--bg-surface)',
-                      border: awardType === 'single' ? '1px solid #fff' : '1px solid var(--border-subtle)',
-                      color: awardType === 'single' ? '#fff' : 'var(--text-muted)',
+                      background: draft.awardType === 'single' ? 'rgba(255,255,255,0.15)' : 'var(--bg-surface)',
+                      border: draft.awardType === 'single' ? '1px solid #fff' : '1px solid var(--border-subtle)',
+                      color: draft.awardType === 'single' ? '#fff' : 'var(--text-muted)',
                       textAlign: 'left'
                     }}
                   >
@@ -529,17 +441,17 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setAwardType('repeatable')}
+                    onClick={() => updateField('awardType', 'repeatable')}
                     style={{
                       padding: 10,
                       borderRadius: 'var(--radius-sm)',
-                      background: awardType === 'repeatable' ? 'rgba(255, 215, 0, 0.2)' : 'var(--bg-surface)',
-                      border: awardType === 'repeatable' ? '1px solid var(--badge-gold)' : '1px solid var(--border-subtle)',
-                      color: awardType === 'repeatable' ? '#fff' : 'var(--text-muted)',
+                      background: draft.awardType === 'repeatable' ? 'rgba(255, 215, 0, 0.2)' : 'var(--bg-surface)',
+                      border: draft.awardType === 'repeatable' ? '1px solid var(--badge-gold)' : '1px solid var(--border-subtle)',
+                      color: draft.awardType === 'repeatable' ? '#fff' : 'var(--text-muted)',
                       textAlign: 'left'
                     }}
                   >
-                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: awardType === 'repeatable' ? 'var(--badge-gold)' : undefined }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: draft.awardType === 'repeatable' ? 'var(--badge-gold)' : undefined }}>
                       Repeatable (x2, x3...)
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Earn multiple times with multiplier tag</div>
@@ -547,17 +459,17 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => setAwardType('upgradable')}
+                    onClick={() => updateField('awardType', 'upgradable')}
                     style={{
                       padding: 10,
                       borderRadius: 'var(--radius-sm)',
-                      background: awardType === 'upgradable' ? 'rgba(6, 182, 212, 0.2)' : 'var(--bg-surface)',
-                      border: awardType === 'upgradable' ? '1px solid #38bdf8' : '1px solid var(--border-subtle)',
-                      color: awardType === 'upgradable' ? '#fff' : 'var(--text-muted)',
+                      background: draft.awardType === 'upgradable' ? 'rgba(6, 182, 212, 0.2)' : 'var(--bg-surface)',
+                      border: draft.awardType === 'upgradable' ? '1px solid #38bdf8' : '1px solid var(--border-subtle)',
+                      color: draft.awardType === 'upgradable' ? '#fff' : 'var(--text-muted)',
                       textAlign: 'left'
                     }}
                   >
-                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: awardType === 'upgradable' ? '#38bdf8' : undefined }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: draft.awardType === 'upgradable' ? '#38bdf8' : undefined }}>
                       Upgradable (Tiers)
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Levels with colored borders</div>
@@ -570,8 +482,8 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 <input
                   type="text"
                   placeholder="Short witty quote or teaser"
-                  value={tagline}
-                  onChange={e => setTagline(e.target.value)}
+                  value={draft.tagline}
+                  onChange={e => updateField('tagline', e.target.value)}
                   style={{ width: '100%' }}
                 />
               </div>
@@ -581,8 +493,8 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 <textarea
                   rows={2}
                   placeholder="Full background and criteria summary..."
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
+                  value={draft.description}
+                  onChange={e => updateField('description', e.target.value)}
                   style={{ width: '100%', resize: 'none' }}
                 />
               </div>
@@ -594,8 +506,8 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                     Assessment / Approval Mode
                   </label>
                   <select
-                    value={approvalMode}
-                    onChange={e => setApprovalMode(e.target.value as ApprovalMode)}
+                    value={draft.approvalMode}
+                    onChange={e => updateField('approvalMode', e.target.value as ApprovalMode)}
                     style={{ width: '100%' }}
                   >
                     <option value="committee_vote">Vote (Majority Committee Vote)</option>
@@ -609,17 +521,17 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                     Nomination & Award Method
                   </label>
                   <select
-                    value={isNominationOnly ? 'nomination_only' : isNominatable ? 'allowed' : 'none'}
+                    value={draft.isNominationOnly ? 'nomination_only' : draft.isNominatable ? 'allowed' : 'none'}
                     onChange={e => {
                       if (e.target.value === 'nomination_only') {
-                        setIsNominationOnly(true);
-                        setIsNominatable(true);
+                        updateField('isNominationOnly', true);
+                        updateField('isNominatable', true);
                       } else if (e.target.value === 'allowed') {
-                        setIsNominationOnly(false);
-                        setIsNominatable(true);
+                        updateField('isNominationOnly', false);
+                        updateField('isNominatable', true);
                       } else {
-                        setIsNominationOnly(false);
-                        setIsNominatable(false);
+                        updateField('isNominationOnly', false);
+                        updateField('isNominatable', false);
                       }
                     }}
                     style={{ width: '100%' }}
@@ -668,16 +580,16 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                     />
                   </label>
 
-                  {imageUrl ? (
+                  {draft.imageUrl ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <img 
-                        src={imageUrl} 
+                        src={draft.imageUrl} 
                         alt="Custom badge icon preview" 
                         style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', objectFit: 'cover', border: '2px solid var(--amber-campfire)' }} 
                       />
                       <button
                         type="button"
-                        onClick={() => setImageUrl('')}
+                        onClick={() => updateField('imageUrl', '')}
                         style={{ fontSize: '0.78rem', color: '#ff6b6b' }}
                       >
                         Remove Custom Image
@@ -701,15 +613,15 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                         type="button"
                         key={name}
                         onClick={() => {
-                          setIconName(name);
-                          setImageUrl('');
+                          updateField('iconName', name);
+                          updateField('imageUrl', '');
                         }}
                         style={{
                           padding: '7px 11px',
                           borderRadius: 'var(--radius-sm)',
-                          background: iconName === name && !imageUrl ? 'var(--amber-campfire)' : 'var(--bg-surface)',
-                          color: iconName === name && !imageUrl ? '#fff' : 'var(--text-muted)',
-                          border: iconName === name && !imageUrl ? '1px solid var(--amber-glow)' : '1px solid var(--border-subtle)',
+                          background: draft.iconName === name && !draft.imageUrl ? 'var(--amber-campfire)' : 'var(--bg-surface)',
+                          color: draft.iconName === name && !draft.imageUrl ? '#fff' : 'var(--text-muted)',
+                          border: draft.iconName === name && !draft.imageUrl ? '1px solid var(--amber-glow)' : '1px solid var(--border-subtle)',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 6
@@ -732,7 +644,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                   <div>
                     <h4 style={{ fontSize: '0.92rem', color: '#fff' }}>
-                      Criteria & Evidence Requirements ({requirements.length})
+                      Criteria & Evidence Requirements ({draft.requirements.length})
                     </h4>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       Users can always attach optional photos along with any requirement.
@@ -740,7 +652,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                   </div>
                   <button
                     type="button"
-                    onClick={handleAddRequirement}
+                    onClick={addRequirement}
                     style={{
                       padding: '5px 10px',
                       borderRadius: 'var(--radius-sm)',
@@ -759,7 +671,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {requirements.map((req, idx) => (
+                  {draft.requirements.map((req, idx) => (
                     <div 
                       key={req.id || idx}
                       style={{
@@ -778,13 +690,13 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                           required
                           placeholder="Task title (e.g. Clean 5 anchors with Method A)"
                           value={req.title}
-                          onChange={e => handleReqChange(idx, 'title', e.target.value)}
+                          onChange={e => updateRequirement(idx, 'title', e.target.value)}
                           style={{ flex: 1, padding: '7px 10px' }}
                         />
-                        {requirements.length > 1 && (
+                        {draft.requirements.length > 1 && (
                           <button
                             type="button"
-                            onClick={() => handleRemoveRequirement(idx)}
+                            onClick={() => removeRequirement(idx)}
                             style={{ color: '#ff6b6b', padding: 4 }}
                           >
                             <Trash2 size={16} />
@@ -799,7 +711,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                             type="number"
                             min={1}
                             value={req.targetCount}
-                            onChange={e => handleReqChange(idx, 'targetCount', parseInt(e.target.value) || 1)}
+                            onChange={e => updateRequirement(idx, 'targetCount', parseInt(e.target.value) || 1)}
                             style={{ width: '100%', padding: '6px 10px' }}
                           />
                         </div>
@@ -807,7 +719,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
                           <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-faint)', marginBottom: 2 }}>Mandatory Evidence Type</label>
                           <select
                             value={req.evidenceType}
-                            onChange={e => handleReqChange(idx, 'evidenceType', e.target.value as EvidenceType)}
+                            onChange={e => updateRequirement(idx, 'evidenceType', e.target.value as EvidenceType)}
                             style={{ width: '100%', padding: '6px 10px' }}
                           >
                             <option value="checkbox">Completed Checkbox (Notes & Photos optional)</option>
@@ -826,7 +738,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={closeDraft}
                   style={{
                     padding: '10px 18px',
                     borderRadius: 'var(--radius-sm)',
