@@ -115,4 +115,28 @@ describe('activityFeedService', () => {
     expect(merged[1].targetBadgeTitle).toBe('Updated');
     expect(merged[2].id).toBe('act_1');
   });
+
+  it('safely handles missing or malformed badge and user records without crashing', () => {
+    // Badges without requirements or title
+    const malformedBadges: any[] = [
+      { id: 'b_incomplete' },
+      null,
+      undefined
+    ];
+    const malformedUsers: any[] = [
+      { uid: 'u_no_name' },
+      null
+    ];
+    const malformedProgress: any = {
+      p1: { status: 'awarded', badgeId: 'b_incomplete' },
+      p2: null
+    };
+
+    const activities = generateHistoricalActivities(malformedBadges, malformedUsers, malformedProgress);
+    expect(activities.length).toBeGreaterThan(0);
+
+    // merge with undefined/null collections
+    const safeMerged = mergeAndDeduplicateActivities(undefined as any, null as any);
+    expect(safeMerged).toEqual([]);
+  });
 });

@@ -46,7 +46,15 @@ const STORAGE_KEYS = {
 function loadFromStorage<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    if (raw && raw !== 'null' && raw !== 'undefined') {
+      const parsed = JSON.parse(raw);
+      if (parsed !== null && parsed !== undefined) {
+        if (Array.isArray(fallback) && !Array.isArray(parsed)) {
+          return fallback;
+        }
+        return parsed;
+      }
+    }
   } catch (e) {
     console.error('Failed to load storage for', key, e);
   }
@@ -714,21 +722,21 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       (cloudActs) => {
         if (!activeSubscriptions) return;
         setActivities(prev => {
-          if (cloudActs.length === 0 && prev.length === 0) {
-            const backfilled = generateHistoricalActivities(badges, users, userProgress);
-            backfilled.slice(0, 15).forEach(a => clubStore.recordActivity(a));
-            return backfilled;
+          const safePrev = Array.isArray(prev) ? prev : [];
+          if ((!cloudActs || cloudActs.length === 0) && safePrev.length === 0) {
+            return generateHistoricalActivities(badges, users, userProgress);
           }
-          return mergeAndDeduplicateActivities(prev, cloudActs);
+          return mergeAndDeduplicateActivities(safePrev, cloudActs || []);
         });
       },
       (err) => {
         console.warn('[Feed] Operating with local activity cache:', err.message);
         setActivities(prev => {
-          if (prev.length === 0) {
+          const safePrev = Array.isArray(prev) ? prev : [];
+          if (safePrev.length === 0) {
             return generateHistoricalActivities(badges, users, userProgress);
           }
-          return prev;
+          return safePrev;
         });
       }
     );
@@ -746,12 +754,14 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
 
   // Ensure activities are seeded on first load if empty
   useEffect(() => {
-    if (activities.length === 0 && (badges.length > 0 || users.length > 0)) {
-      const historical = generateHistoricalActivities(badges, users, userProgress);
-      if (historical.length > 0) {
-        setActivities(historical);
-        historical.slice(0, 15).forEach(a => clubStore.recordActivity(a));
-      }
+    if ((!activities || activities.length === 0) && (badges.length > 0 || users.length > 0)) {
+      setActivities(prev => {
+        const safePrev = Array.isArray(prev) ? prev : [];
+        if (safePrev.length === 0) {
+          return generateHistoricalActivities(badges, users, userProgress);
+        }
+        return safePrev;
+      });
     }
   }, [badges.length, users.length]);
 

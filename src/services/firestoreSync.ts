@@ -468,38 +468,53 @@ export function subscribeToActivities(
     const q = query(colRef, orderBy('timestamp', 'desc'), limit(100));
 
     let active = true;
-    let fallbackUnsub: (() => void) | null = null;
+    let unsub: (() => void) | null = null;
 
-    const primaryUnsub = onSnapshot(q, (snapshot) => {
+    unsub = onSnapshot(q, (snapshot) => {
+      if (!active) return;
       const list: ClubActivity[] = [];
       snapshot.forEach(docSnap => {
         list.push(docSnap.data() as ClubActivity);
       });
       onData(list);
     }, (error) => {
-      console.warn('[Firestore] subscribeToActivities query note:', error.message);
+      // Unsubscribe failing query immediately to avoid stream reconnect churn
+      if (unsub) {
+        unsub();
+        unsub = null;
+      }
       if (!active) return;
-      try {
-        fallbackUnsub = onSnapshot(colRef, (snapshot) => {
-          const list: ClubActivity[] = [];
-          snapshot.forEach(docSnap => {
-            list.push(docSnap.data() as ClubActivity);
+
+      const isIndexError = error.message && error.message.toLowerCase().includes('index');
+      if (isIndexError) {
+        // Try simple unordered query only if orderBy was the issue
+        try {
+          unsub = onSnapshot(colRef, (snapshot) => {
+            if (!active) return;
+            const list: ClubActivity[] = [];
+            snapshot.forEach(docSnap => {
+              list.push(docSnap.data() as ClubActivity);
+            });
+            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            onData(list);
+          }, (err) => {
+            if (onError) onError(err);
           });
-          list.sort((a, b) => b.timestamp - a.timestamp);
-          onData(list);
-        }, (err) => {
-          console.warn('[Firestore] subscribeToActivities fallback note (check Firestore rules for cb_activities):', err.message);
-          if (onError) onError(err);
-        });
-      } catch (fallbackErr: any) {
-        if (onError) onError(fallbackErr);
+        } catch (fallbackErr: any) {
+          if (onError) onError(fallbackErr);
+        }
+      } else {
+        console.warn('[Firestore] Note: cb_activities query restricted by security rules:', error.message);
+        if (onError) onError(error);
       }
     });
 
     return () => {
       active = false;
-      primaryUnsub();
-      if (fallbackUnsub) fallbackUnsub();
+      if (unsub) {
+        unsub();
+        unsub = null;
+      }
     };
   } catch (e: any) {
     return () => {};

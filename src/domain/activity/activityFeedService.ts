@@ -9,8 +9,10 @@ export function describeBadgeChanges(previous: Badge, current: Badge): string {
   if (previous.title !== current.title) {
     changes.push(`Renamed from "${previous.title}"`);
   }
-  if (previous.requirements.length !== current.requirements.length) {
-    changes.push(`Updated requirements (${current.requirements.length} total)`);
+  const prevReqCount = Array.isArray(previous.requirements) ? previous.requirements.length : 0;
+  const currReqCount = Array.isArray(current.requirements) ? current.requirements.length : 0;
+  if (prevReqCount !== currReqCount) {
+    changes.push(`Updated requirements (${currReqCount} total)`);
   }
   if (previous.awardType !== current.awardType) {
     changes.push(`Award type changed to ${current.awardType}`);
@@ -36,20 +38,21 @@ export function describeBadgeChanges(previous: Badge, current: Badge): string {
  * Synthesizes historical activities from existing records when an activity feed is initially empty.
  */
 export function generateHistoricalActivities(
-  badges: Badge[],
-  users: UserProfile[],
-  progressMap: Record<string, UserBadgeProgress>
+  badges: Badge[] = [],
+  users: UserProfile[] = [],
+  progressMap: Record<string, UserBadgeProgress> = {}
 ): ClubActivity[] {
   const activities: ClubActivity[] = [];
 
   // 1. User joined events
-  users.forEach((u, idx) => {
+  (users || []).forEach((u, idx) => {
+    if (!u) return;
     activities.push({
-      id: `hist_user_${u.uid}_${idx}`,
+      id: `hist_user_${u.uid || idx}`,
       type: 'user_joined',
       timestamp: u.createdAt || (Date.now() - 86400000 * 7),
       actorUserId: u.uid,
-      actorDisplayName: u.displayName,
+      actorDisplayName: u.displayName || 'Club Member',
       actorAvatarUrl: u.avatarUrl,
       details: {
         summary: 'Joined Safe Climbing Club'
@@ -58,54 +61,58 @@ export function generateHistoricalActivities(
   });
 
   // 2. Badge created events
-  badges.forEach((b, idx) => {
+  (badges || []).forEach((b, idx) => {
+    if (!b) return;
+    const reqCount = Array.isArray(b.requirements) ? b.requirements.length : 0;
     activities.push({
-      id: `hist_badge_${b.id}_${idx}`,
+      id: `hist_badge_${b.id || idx}`,
       type: 'badge_created',
       timestamp: b.createdAt || (Date.now() - 86400000 * 5),
       targetBadgeId: b.id,
-      targetBadgeTitle: b.title,
+      targetBadgeTitle: b.title || 'Climbing Badge',
       targetBadgeIcon: b.iconName,
       targetBadgeImageUrl: b.imageUrl,
       details: {
         category: b.category,
-        summary: `Created new badge with ${b.requirements.length} requirement(s)`
+        summary: `Created new badge with ${reqCount} requirement(s)`
       }
     });
   });
 
   // 3. Awarded badges
-  Object.values(progressMap).forEach((p, idx) => {
-    if (p.status === 'awarded') {
-      const targetBadge = badges.find(b => b.id === p.badgeId);
-      const user = users.find(u => u.uid === p.userId);
-      activities.push({
-        id: `hist_award_${p.id}_${idx}`,
-        type: 'badge_awarded',
-        timestamp: p.awardedAt || (Date.now() - 86400000 * 2),
-        actorUserId: p.userId,
-        actorDisplayName: user?.displayName || 'Club Member',
-        actorAvatarUrl: user?.avatarUrl,
-        targetBadgeId: p.badgeId,
-        targetBadgeTitle: targetBadge?.title || 'Climbing Badge',
-        targetBadgeIcon: targetBadge?.iconName || 'Award',
-        targetBadgeImageUrl: targetBadge?.imageUrl,
-        details: {
-          awardCount: p.awardedCount,
-          upgradeTier: p.upgradeTier,
-          category: targetBadge?.category,
-          summary: p.upgradeTier && p.upgradeTier > 1 
-            ? `Achieved Tier ${p.upgradeTier} border!` 
-            : p.awardedCount && p.awardedCount > 1 
-              ? `Earned x${p.awardedCount} multiplier!` 
-              : 'Earned and unlocked badge!'
-        }
-      });
-    }
-  });
+  if (progressMap && typeof progressMap === 'object') {
+    Object.values(progressMap).forEach((p, idx) => {
+      if (p && p.status === 'awarded') {
+        const targetBadge = (badges || []).find(b => b && b.id === p.badgeId);
+        const user = (users || []).find(u => u && u.uid === p.userId);
+        activities.push({
+          id: `hist_award_${p.id || p.badgeId || idx}`,
+          type: 'badge_awarded',
+          timestamp: p.awardedAt || (Date.now() - 86400000 * 2),
+          actorUserId: p.userId,
+          actorDisplayName: user?.displayName || 'Club Member',
+          actorAvatarUrl: user?.avatarUrl,
+          targetBadgeId: p.badgeId,
+          targetBadgeTitle: targetBadge?.title || 'Climbing Badge',
+          targetBadgeIcon: targetBadge?.iconName || 'Award',
+          targetBadgeImageUrl: targetBadge?.imageUrl,
+          details: {
+            awardCount: p.awardedCount,
+            upgradeTier: p.upgradeTier,
+            category: targetBadge?.category,
+            summary: p.upgradeTier && p.upgradeTier > 1 
+              ? `Achieved Tier ${p.upgradeTier} border!` 
+              : p.awardedCount && p.awardedCount > 1 
+                ? `Earned x${p.awardedCount} multiplier!` 
+                : 'Earned and unlocked badge!'
+          }
+        });
+      }
+    });
+  }
 
   // Return sorted newest first
-  return activities.sort((a, b) => b.timestamp - a.timestamp);
+  return activities.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 }
 
 /**
@@ -130,15 +137,18 @@ export function formatTimeAgo(timestamp: number): string {
  * Merges two lists of activities, deduplicating by unique ID and sorting newest first.
  */
 export function mergeAndDeduplicateActivities(
-  existing: ClubActivity[],
-  incoming: ClubActivity[]
+  existing: ClubActivity[] = [],
+  incoming: ClubActivity[] = []
 ): ClubActivity[] {
   const map = new Map<string, ClubActivity>();
-  for (const act of existing) {
-    if (act.id) map.set(act.id, act);
+  const safeExisting = Array.isArray(existing) ? existing : [];
+  const safeIncoming = Array.isArray(incoming) ? incoming : [];
+
+  for (const act of safeExisting) {
+    if (act && act.id) map.set(act.id, act);
   }
-  for (const act of incoming) {
-    if (act.id) map.set(act.id, act);
+  for (const act of safeIncoming) {
+    if (act && act.id) map.set(act.id, act);
   }
-  return Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp);
+  return Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 }

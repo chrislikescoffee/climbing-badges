@@ -17,23 +17,25 @@ interface ActivityFeedProps {
 type FeedFilter = 'all' | 'awards' | 'badges' | 'members';
 
 export const ActivityFeed: React.FC<ActivityFeedProps> = ({
-  activities,
-  badges,
+  activities = [],
+  badges = [],
   upgradeTiers = [],
   onSelectBadge
 }) => {
   const [filter, setFilter] = useState<FeedFilter>('all');
+  const safeActivities = Array.isArray(activities) ? activities : [];
 
-  const filteredActivities = activities.filter(act => {
+  const filteredActivities = safeActivities.filter(act => {
+    if (!act) return false;
     if (filter === 'awards') return act.type === 'badge_awarded';
     if (filter === 'badges') return act.type === 'badge_created' || act.type === 'badge_updated';
     if (filter === 'members') return act.type === 'user_joined';
     return true;
   });
 
-  const awardsCount = activities.filter(a => a.type === 'badge_awarded').length;
-  const badgeEventsCount = activities.filter(a => a.type === 'badge_created' || a.type === 'badge_updated').length;
-  const membersCount = activities.filter(a => a.type === 'user_joined').length;
+  const awardsCount = safeActivities.filter(a => a?.type === 'badge_awarded').length;
+  const badgeEventsCount = safeActivities.filter(a => a?.type === 'badge_created' || a?.type === 'badge_updated').length;
+  const membersCount = safeActivities.filter(a => a?.type === 'user_joined').length;
 
   const renderBadgeIcon = (iconName?: string, imageUrl?: string, size = 20) => {
     if (imageUrl) {
