@@ -1,12 +1,13 @@
 import React from 'react';
-import { Shield, Award, Sparkles } from 'lucide-react';
-import type { Badge, UserBadgeProgress, UserProfile, UpgradeTier } from '../../types';
+import { Shield, Award, Sparkles, Clock, CheckCircle2 } from 'lucide-react';
+import type { Badge, UserBadgeProgress, UserProfile, UpgradeTier, Nomination } from '../../types';
 
 interface MyBadgesProps {
   user: UserProfile;
   badges: Badge[];
   userProgress: Record<string, UserBadgeProgress>;
   upgradeTiers: UpgradeTier[];
+  nominations?: Nomination[];
   onSelectBadge: (badge: Badge) => void;
 }
 
@@ -15,9 +16,11 @@ export const MyBadges: React.FC<MyBadgesProps> = ({
   badges,
   userProgress,
   upgradeTiers,
+  nominations = [],
   onSelectBadge
 }) => {
   const earnedBadges = badges.filter(b => userProgress[b.id]?.status === 'awarded');
+  const pendingBadges = badges.filter(b => userProgress[b.id]?.status === 'pending_review');
 
   return (
     <div style={{ maxWidth: 940, margin: '0 auto', paddingBottom: 60, position: 'relative' }}>
@@ -47,24 +50,44 @@ export const MyBadges: React.FC<MyBadgesProps> = ({
           </div>
         </div>
 
-        <div style={{
-          background: 'linear-gradient(135deg, #ffd700, #ff9800)',
-          color: '#0f1418',
-          fontSize: '0.84rem',
-          fontWeight: 900,
-          padding: '6px 16px',
-          borderRadius: 'var(--radius-full)',
-          boxShadow: '0 4px 14px rgba(255, 215, 0, 0.4)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6
-        }}>
-          <Award size={16} color="#0f1418" />
-          <span>Badges Earnt: {earnedBadges.length}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #ffd700, #ff9800)',
+            color: '#0f1418',
+            fontSize: '0.84rem',
+            fontWeight: 900,
+            padding: '6px 16px',
+            borderRadius: 'var(--radius-full)',
+            boxShadow: '0 4px 14px rgba(255, 215, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6
+          }}>
+            <Award size={16} color="#0f1418" />
+            <span>Badges Earnt: {earnedBadges.length}</span>
+          </div>
+
+          {pendingBadges.length > 0 && (
+            <div style={{
+              background: 'rgba(255, 152, 0, 0.15)',
+              color: 'var(--amber-campfire)',
+              border: '1px solid rgba(255, 152, 0, 0.4)',
+              fontSize: '0.84rem',
+              fontWeight: 700,
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6
+            }}>
+              <Clock size={15} />
+              <span>Pending Review: {pendingBadges.length}</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Badges Display Board */}
+      {/* Section 1: Badges Display Board (Earned) */}
       <div style={{
         background: '#16202a',
         backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
@@ -73,13 +96,14 @@ export const MyBadges: React.FC<MyBadgesProps> = ({
         borderRadius: 'var(--radius-lg)',
         padding: '36px 28px',
         boxShadow: 'inset 0 0 40px rgba(0,0,0,0.8), 0 16px 40px rgba(0,0,0,0.6)',
-        position: 'relative'
+        position: 'relative',
+        marginBottom: 32
       }}>
         <div style={{
           border: '2px dashed rgba(255, 255, 255, 0.15)',
           borderRadius: 'var(--radius-md)',
           padding: '30px 20px',
-          minHeight: 380
+          minHeight: 320
         }}>
           {earnedBadges.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
@@ -186,6 +210,151 @@ export const MyBadges: React.FC<MyBadgesProps> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Section 2: Pending Approval Badges */}
+      <div className="glass-panel" style={{
+        padding: '24px 28px',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid rgba(255, 152, 0, 0.35)',
+        background: 'linear-gradient(180deg, rgba(255, 152, 0, 0.06), rgba(15, 23, 42, 0.6))'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 34,
+              height: 34,
+              borderRadius: '50%',
+              background: 'rgba(255, 152, 0, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--amber-campfire)'
+            }}>
+              <Clock size={18} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', color: '#fff', margin: 0, fontWeight: 700 }}>
+                Pending Approval ({pendingBadges.length})
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: 0 }}>
+                Badges where all criteria are completed and currently undergoing Committee verification
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {pendingBadges.length === 0 ? (
+          <div style={{
+            padding: '24px 16px',
+            textAlign: 'center',
+            background: 'rgba(255, 255, 255, 0.02)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px dashed var(--border-subtle)',
+            color: 'var(--text-faint)',
+            fontSize: '0.86rem'
+          }}>
+            No badges currently pending review. Complete all criteria for any badge to escalate it for Committee vote.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {pendingBadges.map(badge => {
+              const nom = nominations.find(n => n.badgeId === badge.id && n.nomineeUserId === user.uid && n.status === 'pending');
+              const votes = Object.values(nom?.votes || {});
+              const approveCount = votes.filter(v => v.vote === 'approve').length;
+              const requiredCount = nom?.requiredVotes;
+
+              return (
+                <div
+                  key={badge.id}
+                  onClick={() => onSelectBadge(badge)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '14px 18px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid rgba(255, 152, 0, 0.3)',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease, border-color 0.15s ease',
+                    gap: 16
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'var(--amber-campfire)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255, 152, 0, 0.3)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(255, 152, 0, 0.1)',
+                      border: '1px solid rgba(255, 152, 0, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}>
+                      {badge.imageUrl ? (
+                        <img src={badge.imageUrl} alt={badge.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <Award size={22} color="var(--amber-campfire)" />
+                      )}
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <h4 style={{ color: '#fff', fontSize: '0.98rem', margin: 0, fontWeight: 700 }}>
+                          {badge.title}
+                        </h4>
+                        <span style={{
+                          fontSize: '0.68rem',
+                          padding: '2px 7px',
+                          borderRadius: 8,
+                          background: 'rgba(255, 152, 0, 0.2)',
+                          color: 'var(--amber-campfire)',
+                          fontWeight: 700,
+                          textTransform: 'uppercase'
+                        }}>
+                          Pending Approval
+                        </span>
+                      </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', margin: '3px 0 0' }}>
+                        All {badge.requirements?.length || 0} requirements met • Click to inspect evidence logs
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(255, 152, 0, 0.08)',
+                    border: '1px solid rgba(255, 152, 0, 0.25)',
+                    color: 'var(--amber-campfire)',
+                    fontSize: '0.82rem',
+                    fontWeight: 700,
+                    flexShrink: 0
+                  }}>
+                    <CheckCircle2 size={16} />
+                    <span>
+                      {requiredCount ? `${approveCount} / ${requiredCount} Approvals` : 'Awaiting Review Queue'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

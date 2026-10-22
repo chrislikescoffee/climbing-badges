@@ -26,6 +26,11 @@ import {
   generateHistoricalActivities,
   mergeAndDeduplicateActivities 
 } from './domain/activity/activityFeedService';
+import {
+  calculateRequiredVotes,
+  canCastNominationVote,
+  evaluateNominationOutcome
+} from './domain/committee/votingEngine';
 
 import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
 import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier, ClubActivity } from './types';
@@ -546,6 +551,39 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
               : 'Earned and unlocked badge!'
         }
       });
+    } else if (event === 'pending_review') {
+      sounds.playCarabinerClick();
+      // Auto-escalate to Committee Review Queue
+      const existingNom = nominations.find(
+        n => n.badgeId === badgeId && n.nomineeUserId === currentUser.uid && n.status === 'pending'
+      );
+
+      if (!existingNom) {
+        const committeeUsers = users.filter(u => u.role === 'committee' || u.role === 'admin');
+        const isNomineeInCommittee = committeeUsers.some(u => u.uid === currentUser.uid);
+        const requiredVotes = calculateRequiredVotes(committeeUsers.length, isNomineeInCommittee);
+
+        const allSubmissionPhotos = [mandatoryPhotoUrl, ...(optionalPhotoUrls || [])].filter(Boolean) as string[];
+
+        const newNom: Nomination = {
+          id: 'nom_' + Date.now() + '_' + badgeId.slice(0, 8),
+          badgeId,
+          nomineeUserId: currentUser.uid,
+          nomineeDisplayName: currentUser.displayName,
+          nominatorUserId: currentUser.uid,
+          nominatorDisplayName: `${currentUser.displayName} (Self-Submission)`,
+          reason: text?.trim() || `Completed all criteria for "${targetBadge.title}". Escalated for Committee verification.`,
+          photoUrls: allSubmissionPhotos,
+          requiredVotes,
+          createdAt: Date.now(),
+          status: 'pending',
+          votes: {}
+        };
+
+        setNominations(prev => [newNom, ...prev]);
+        clubStore.saveNomination(newNom);
+      }
+      alert(`All criteria completed for "${targetBadge.title}"! Escalated to Committee Review Queue for voting.`);
     }
 
     // 2. Persist to Cloud Firestore in named database
@@ -563,7 +601,9 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   const handleSubmitNomination = (badgeId: string, nomineeUserId: string, reason: string) => {
     if (!currentUser) return;
     const nominee = users.find(u => u.uid === nomineeUserId);
-    const committeeCount = users.filter(u => u.role === 'committee' || u.role === 'admin').length;
+    const committeeUsers = users.filter(u => u.role === 'committee' || u.role === 'admin');
+    const isNomineeInCommittee = committeeUsers.some(u => u.uid === nomineeUserId);
+    const requiredVotes = calculateRequiredVotes(committeeUsers.length, isNomineeInCommittee);
 
     const newNom: Nomination = {
       id: 'nom_' + Date.now(),
@@ -578,7 +618,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       votes: {
         [currentUser.uid]: { vote: 'approve', timestamp: Date.now() }
       },
-      requiredVotes: Math.ceil(committeeCount / 2)
+      requiredVotes
     };
 
     setNominations(prev => [newNom, ...prev]);
@@ -588,6 +628,26 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
 
   const handleCastVote = (nominationId: string, vote: 'approve' | 'reject', comment?: string) => {
     if (!currentUser) return;
+
+    const targetNom = nominations.find(n => n.id === nominationId);
+    if (!targetNom) return;
+
+    // Enforce self-recusal: committee members cannot vote on their own nominations
+    const { canVote, reason } = canCastNominationVote(currentUser, targetNom.nomineeUserId);
+    if (!canVote) {
+      if (reason === 'self_recusal') {
+        alert('Committee members cannot vote on their own nominations or awards.');
+      } else {
+        alert('You do not have permission to cast a vote on this nomination.');
+      }
+      return;
+    }
+
+    const committeeUsers = users.filter(u => u.role === 'committee' || u.role === 'admin');
+    const isNomineeInCommittee = committeeUsers.some(u => u.uid === targetNom.nomineeUserId);
+    const effectiveVoters = isNomineeInCommittee ? Math.max(1, committeeUsers.length - 1) : committeeUsers.length;
+    const requiredVotes = targetNom.requiredVotes || calculateRequiredVotes(committeeUsers.length, isNomineeInCommittee);
+
     setNominations(prev => prev.map(nom => {
       if (nom.id !== nominationId) return nom;
       const updatedVotes = {
@@ -595,9 +655,10 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         [currentUser.uid]: { vote, comment, timestamp: Date.now() }
       };
 
-      const approveCount = Object.values(updatedVotes).filter(v => v.vote === 'approve').length;
+      const outcome = evaluateNominationOutcome(updatedVotes, effectiveVoters, requiredVotes);
       let newStatus = nom.status;
-      if (approveCount >= nom.requiredVotes) {
+
+      if (outcome === 'approved') {
         newStatus = 'approved';
         sounds.playFanfare();
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
@@ -633,17 +694,36 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
               awardCount: updatedNomineeProg.awardedCount,
               upgradeTier: updatedNomineeProg.upgradeTier,
               category: targetBadge.category,
-              summary: 'Awarded by Committee vote from peer nomination!'
+              summary: 'Awarded by Committee vote!'
             }
           });
         }
+      } else if (outcome === 'rejected') {
+        newStatus = 'rejected';
+        // Reset progress status to in_progress so member can re-attempt / log more evidence
+        const currentProg = userProgress[nom.badgeId];
+        if (currentProg) {
+          const updatedProg: UserBadgeProgress = {
+            ...currentProg,
+            status: 'in_progress'
+          };
+          clubStore.saveProgress(updatedProg);
+          setUserProgress(curr => ({
+            ...curr,
+            [nom.badgeId]: updatedProg
+          }));
+        }
       }
 
-      return {
+      const updatedNom: Nomination = {
         ...nom,
         status: newStatus,
-        votes: updatedVotes
+        votes: updatedVotes,
+        requiredVotes
       };
+
+      clubStore.saveNomination(updatedNom);
+      return updatedNom;
     }));
   };
 
@@ -861,6 +941,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
               badges={badges}
               userProgress={userProgress}
               upgradeTiers={upgradeTiers}
+              nominations={nominations}
               onSelectBadge={b => setInspectingBadge(b)}
             />
           ) : (

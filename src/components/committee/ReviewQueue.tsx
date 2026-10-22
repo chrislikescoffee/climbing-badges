@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Users, ThumbsUp, ThumbsDown, Award, Clock, Shield } from 'lucide-react';
 import type { Nomination, UserProfile, Badge } from '../../types';
 import { sounds } from '../../services/audio';
+import { calculateRequiredVotes, canCastNominationVote } from '../../domain/committee/votingEngine';
 
 interface ReviewQueueProps {
   nominations: Nomination[];
@@ -155,10 +156,16 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {pendingNominations.map(nom => {
             const badge = badges.find(b => b.id === nom.badgeId);
-            const votes = Object.values(nom.votes);
+            const votes = Object.values(nom.votes || {});
             const approveCount = votes.filter(v => v.vote === 'approve').length;
-            const requiredVotes = nom.requiredVotes || Math.ceil(committeeMembers.length / 2);
-            const userAlreadyVoted = currentUser ? Boolean(nom.votes[currentUser.uid]) : false;
+            const rejectCount = votes.filter(v => v.vote === 'reject').length;
+            
+            const isNomineeInCommittee = committeeMembers.some(m => m.uid === nom.nomineeUserId);
+            const effectiveCommitteeCount = isNomineeInCommittee ? Math.max(1, committeeMembers.length - 1) : committeeMembers.length;
+            const requiredVotes = calculateRequiredVotes(committeeMembers.length, isNomineeInCommittee);
+            
+            const { reason: recusalReason } = canCastNominationVote(currentUser, nom.nomineeUserId);
+            const userAlreadyVoted = currentUser ? Boolean(nom.votes?.[currentUser.uid]) : false;
 
             return (
               <div key={nom.id} className="glass-panel" style={{ padding: 22 }}>
@@ -177,10 +184,23 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                     }}>
                       Nomination for {badge?.title || 'Badge'}
                     </span>
-                    <h3 style={{ fontSize: '1.15rem', color: '#fff' }}>
-                      {nom.nomineeDisplayName}
+                    <h3 style={{ fontSize: '1.15rem', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span>{nom.nomineeDisplayName}</span>
+                      {isNomineeInCommittee && (
+                        <span style={{
+                          fontSize: '0.68rem',
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          color: '#38bdf8',
+                          padding: '2px 7px',
+                          borderRadius: 10,
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          fontWeight: 600
+                        }}>
+                          Committee Member (Recused)
+                        </span>
+                      )}
                     </h3>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 4 }}>
                       Nominated by {nom.nominatorDisplayName}
                     </p>
                   </div>
@@ -196,8 +216,15 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                       {approveCount} / {requiredVotes}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      Approvals needed
+                      {isNomineeInCommittee 
+                        ? `Approvals needed (${effectiveCommitteeCount} voters)` 
+                        : `Approvals needed (${committeeMembers.length} voters)`}
                     </div>
+                    {rejectCount > 0 && (
+                      <div style={{ fontSize: '0.68rem', color: '#f87171', marginTop: 2 }}>
+                        {rejectCount} reject{rejectCount !== 1 ? 's' : ''}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -214,7 +241,7 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                 </div>
 
                 {nom.photoUrls && nom.photoUrls.length > 0 && (
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
                     {nom.photoUrls.map((url, i) => (
                       <img 
                         key={i} 
@@ -233,7 +260,25 @@ export const ReviewQueue: React.FC<ReviewQueueProps> = ({
                     background: 'var(--bg-surface-elevated)',
                     border: '1px solid var(--border-subtle)'
                   }}>
-                    {userAlreadyVoted ? (
+                    {recusalReason === 'self_recusal' ? (
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(255, 152, 0, 0.12)',
+                        border: '1px solid rgba(255, 152, 0, 0.3)',
+                        color: 'var(--amber-campfire)',
+                        fontSize: '0.85rem',
+                        fontWeight: 600
+                      }}>
+                        <Shield size={18} style={{ flexShrink: 0 }} />
+                        <span>
+                          You are the candidate for this badge award. Per club policy, committee members cannot vote on their own awards (quorum adjusted to {effectiveCommitteeCount} members).
+                        </span>
+                      </div>
+                    ) : userAlreadyVoted ? (
                       <div style={{ fontSize: '0.85rem', color: 'var(--emerald-moss)', fontWeight: 600 }}>
                         ✓ You have cast your vote on this submission.
                       </div>
