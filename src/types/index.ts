@@ -117,10 +117,24 @@ export interface CommitteeEvictionRequest {
   resolvedByDisplayName?: string;
 }
 
-export interface OfflineQueueItem {
+export type ActivityType = 'user_joined' | 'badge_created' | 'badge_updated' | 'badge_awarded';
+
+export interface ClubActivity {
   id: string;
+  type: ActivityType;
   timestamp: number;
-  type: 'log_evidence' | 'nomination';
-  payload: any;
-  status: 'pending' | 'syncing' | 'failed';
+  actorUserId?: string;
+  actorDisplayName?: string;
+  actorAvatarUrl?: string;
+  targetBadgeId?: string;
+  targetBadgeTitle?: string;
+  targetBadgeIcon?: string;
+  targetBadgeImageUrl?: string;
+  details?: {
+    awardCount?: number;
+    upgradeTier?: number;
+    category?: string;
+    summary?: string;
+  };
 }
+

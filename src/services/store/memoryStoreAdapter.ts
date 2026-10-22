@@ -5,7 +5,8 @@ import type {
   UpgradeTier,
   UserBadgeProgress,
   Nomination,
-  CommitteeEvictionRequest
+  CommitteeEvictionRequest,
+  ClubActivity
 } from '../../types';
 
 export class MemoryStoreAdapter implements ClubStore {
@@ -15,12 +16,14 @@ export class MemoryStoreAdapter implements ClubStore {
   nominations = new Map<string, Nomination>();
   evictions = new Map<string, CommitteeEvictionRequest>();
   tiers = new Map<number, UpgradeTier>();
+  activities = new Map<string, ClubActivity>();
 
   private badgeSubscribers = new Set<(badges: Badge[]) => void>();
   private userSubscribers = new Set<(users: UserProfile[]) => void>();
   private nominationSubscribers = new Set<(noms: Nomination[]) => void>();
   private evictionSubscribers = new Set<(evictions: CommitteeEvictionRequest[]) => void>();
   private tierSubscribers = new Set<(tiers: UpgradeTier[]) => void>();
+  private activitySubscribers = new Set<(acts: ClubActivity[]) => void>();
   private progressSubscribers = new Map<string, Set<(prog: Record<string, UserBadgeProgress>) => void>>();
 
   subscribeBadges(
@@ -174,5 +177,21 @@ export class MemoryStoreAdapter implements ClubStore {
 
   async uploadBadgeImage(_badgeId: string, dataUrl: string): Promise<string> {
     return dataUrl;
+  }
+
+  subscribeActivities(onData: (acts: ClubActivity[]) => void): () => void {
+    const list = Array.from(this.activities.values()).sort((a, b) => b.timestamp - a.timestamp);
+    onData(list);
+    this.activitySubscribers.add(onData);
+    return () => this.activitySubscribers.delete(onData);
+  }
+
+  async recordActivity(activity: Omit<ClubActivity, 'id'>): Promise<boolean> {
+    const id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+    const item: ClubActivity = { ...activity, id };
+    this.activities.set(id, item);
+    const list = Array.from(this.activities.values()).sort((a, b) => b.timestamp - a.timestamp);
+    this.activitySubscribers.forEach(cb => cb(list));
+    return true;
   }
 }

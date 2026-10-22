@@ -23,13 +23,13 @@ export function sanitizeForFirestore<T extends Record<string, any>>(obj: T): T {
 }
 
 import { 
-  collection, doc, setDoc, deleteDoc, onSnapshot, query, where 
+  collection, doc, setDoc, deleteDoc, onSnapshot, query, where, orderBy, limit 
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage, isFirebaseConfigured } from './firebase';
 import type { 
   Badge, UserProfile, UpgradeTier, UserBadgeProgress, 
-  Nomination, CommitteeEvictionRequest 
+  Nomination, CommitteeEvictionRequest, ClubActivity 
 } from '../types';
 
 const COLLECTIONS = {
@@ -38,7 +38,8 @@ const COLLECTIONS = {
   TIERS: 'cb_tiers',
   PROGRESS: 'cb_progress',
   NOMINATIONS: 'cb_nominations',
-  EVICTIONS: 'cb_evictions'
+  EVICTIONS: 'cb_evictions',
+  ACTIVITIES: 'cb_activities'
 };
 
 /**
@@ -450,5 +451,71 @@ export async function cloudSaveProgress(progress: UserBadgeProgress): Promise<vo
     console.log(`[Firestore] Successfully saved badge progress for user "${progress.userId}", badge "${progress.badgeId}" to cloud DB!`);
   } catch (e) {
     console.error('[Firestore] Error saving progress:', e);
+  }
+}
+
+/**
+ * Real-time Activities listener
+ */
+export function subscribeToActivities(
+  onData: (activities: ClubActivity[]) => void,
+  onError?: (err: Error) => void
+) {
+  if (!isFirebaseConfigured) return () => {};
+
+  try {
+    const colRef = collection(db, COLLECTIONS.ACTIVITIES);
+    const q = query(colRef, orderBy('timestamp', 'desc'), limit(100));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list: ClubActivity[] = [];
+      snapshot.forEach(docSnap => {
+        list.push(docSnap.data() as ClubActivity);
+      });
+      onData(list);
+    }, (error) => {
+      // Fallback without ordering in case index is pending
+      try {
+        const fallbackUnsub = onSnapshot(colRef, (snapshot) => {
+          const list: ClubActivity[] = [];
+          snapshot.forEach(docSnap => {
+            list.push(docSnap.data() as ClubActivity);
+          });
+          list.sort((a, b) => b.timestamp - a.timestamp);
+          onData(list);
+        }, (err) => {
+          if (onError) onError(err);
+        });
+        return fallbackUnsub;
+      } catch (fallbackErr) {
+        if (onError) onError(error);
+      }
+    });
+
+    return unsubscribe;
+  } catch (e: any) {
+    return () => {};
+  }
+}
+
+/**
+ * Save an activity event to Firestore cb_activities
+ */
+export async function cloudSaveActivity(
+  activity: Omit<ClubActivity, 'id'> & { id?: string }
+): Promise<boolean> {
+  if (!isFirebaseConfigured) return false;
+  try {
+    const id = activity.id || ('act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7));
+    const fullActivity: ClubActivity = {
+      ...activity,
+      id
+    };
+    await setDoc(doc(db, COLLECTIONS.ACTIVITIES, id), sanitizeForFirestore(fullActivity), { merge: true });
+    console.log(`[Firestore] Recorded activity: ${fullActivity.type}`);
+    return true;
+  } catch (e) {
+    console.error('[Firestore] Error saving activity:', e);
+    return false;
   }
 }

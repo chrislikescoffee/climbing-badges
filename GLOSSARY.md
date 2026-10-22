@@ -39,3 +39,7 @@ _Avoid_: Recommendation, endorsement, referral
 **Approval Mode**:
 The validation policy governing whether a badge is self-awarded or requires committee vote.
 _Avoid_: Verification level, review type
+
+**Activity**:
+An immutable event record documenting a notable club milestone, such as a member joining, a badge created or updated, or an award cycle completed.
+_Avoid_: Event, log entry, notification, feed item

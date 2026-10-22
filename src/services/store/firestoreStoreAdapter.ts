@@ -5,7 +5,8 @@ import type {
   UpgradeTier,
   UserBadgeProgress,
   Nomination,
-  CommitteeEvictionRequest
+  CommitteeEvictionRequest,
+  ClubActivity
 } from '../../types';
 import {
   subscribeToBadges,
@@ -23,7 +24,9 @@ import {
   cloudSaveUpgradeTier,
   subscribeToUserProgress,
   cloudSaveProgress,
-  uploadBadgeImageToStorage
+  uploadBadgeImageToStorage,
+  subscribeToActivities,
+  cloudSaveActivity
 } from '../firestoreSync';
 import { uploadEvidencePhoto } from '../storageSync';
 
@@ -129,5 +132,16 @@ export class FirestoreStoreAdapter implements ClubStore {
 
   uploadBadgeImage(badgeId: string, dataUrl: string): Promise<string> {
     return uploadBadgeImageToStorage(badgeId, dataUrl);
+  }
+
+  subscribeActivities(
+    onData: (activities: ClubActivity[]) => void,
+    onError?: (err: Error) => void
+  ): () => void {
+    return subscribeToActivities(onData, onError);
+  }
+
+  recordActivity(activity: Omit<ClubActivity, 'id'>): Promise<boolean> {
+    return cloudSaveActivity(activity);
   }
 }

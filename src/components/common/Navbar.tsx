@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Tent, Award, CheckSquare, Shield, Wifi, WifiOff, Cloud, CloudOff, LogOut, 
-  ChevronDown, Settings, Users, Palette, Menu, X, User 
+  ChevronDown, Settings, Users, Palette, Menu, X, User, Sparkles 
 } from 'lucide-react';
 import type { UserProfile } from '../../types';
 
-export type TabKey = 'badges' | 'my-badges' | 'reviews' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
+export type TabKey = 'badges' | 'my-badges' | 'feed' | 'reviews' | 'badge-mgmt' | 'user-mgmt' | 'upgrade-tiers' | 'profile';
 
 interface NavbarProps {
   activeTab: TabKey;
@@ -154,6 +154,26 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Award size={15} />
             <span>My Badges</span>
+          </button>
+
+          <button
+            onClick={() => handleTabSelect('feed')}
+            style={{
+              padding: '7px 14px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: '0.86rem',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              color: activeTab === 'feed' ? '#fff' : 'var(--text-muted)',
+              background: activeTab === 'feed' ? 'var(--bg-surface-elevated)' : 'transparent',
+              border: activeTab === 'feed' ? '1px solid var(--border-highlight)' : '1px solid transparent',
+              cursor: 'pointer'
+            }}
+          >
+            <Sparkles size={15} color={activeTab === 'feed' ? 'var(--amber-campfire)' : 'currentColor'} />
+            <span>Activity Feed</span>
           </button>
 
           <button
@@ -611,6 +631,27 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Award size={18} color="#ffd700" />
               <span>My Badges</span>
+            </button>
+
+            <button
+              onClick={() => handleTabSelect('feed')}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                color: activeTab === 'feed' ? 'var(--amber-campfire)' : '#fff',
+                background: activeTab === 'feed' ? 'rgba(255, 152, 0, 0.12)' : 'var(--bg-surface-elevated)',
+                border: activeTab === 'feed' ? '1px solid rgba(255, 152, 0, 0.35)' : '1px solid transparent',
+                textAlign: 'left',
+                cursor: 'pointer'
+              }}
+            >
+              <Sparkles size={18} color="var(--amber-campfire)" />
+              <span>Activity Feed</span>
             </button>
 
             <button

@@ -4,7 +4,8 @@ import type {
   UpgradeTier,
   UserBadgeProgress,
   Nomination,
-  CommitteeEvictionRequest
+  CommitteeEvictionRequest,
+  ClubActivity
 } from '../../types';
 
 export interface ClubStore {
@@ -67,4 +68,11 @@ export interface ClubStore {
   // Storage / Proof Upload
   uploadEvidenceImage(file: File, userId: string, badgeId: string): Promise<string>;
   uploadBadgeImage(badgeId: string, dataUrl: string): Promise<string>;
+
+  // Activity Feed
+  subscribeActivities(
+    onData: (activities: ClubActivity[]) => void,
+    onError?: (err: Error) => void
+  ): () => void;
+  recordActivity(activity: Omit<ClubActivity, 'id'>): Promise<boolean>;
 }

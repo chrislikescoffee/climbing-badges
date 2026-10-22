@@ -20,9 +20,11 @@ import { BadgeManagement } from './components/management/BadgeManagement';
 import { UserManagement } from './components/management/UserManagement';
 import { UpgradeTierManagement } from './components/management/UpgradeTierManagement';
 import { ProfileView } from './components/profile/ProfileView';
+import { ActivityFeed } from './components/feed/ActivityFeed';
+import { describeBadgeChanges, generateHistoricalActivities } from './domain/activity/activityFeedService';
 
 import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
-import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier } from './types';
+import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier, ClubActivity } from './types';
 import { sounds } from './services/audio';
 
 // LocalStorage Persistence Keys
@@ -33,7 +35,8 @@ const STORAGE_KEYS = {
   PROGRESS: 'climbing_user_progress',
   NOMINATIONS: 'climbing_nominations',
   EVICTIONS: 'climbing_evictions',
-  TIERS: 'climbing_upgrade_tiers'
+  TIERS: 'climbing_upgrade_tiers',
+  ACTIVITIES: 'climbing_activities_list'
 };
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -113,6 +116,11 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     loadFromStorage<CommitteeEvictionRequest[]>(STORAGE_KEYS.EVICTIONS, INITIAL_EVICTION_REQUESTS)
   );
 
+  // 7. Persistent Club Activities / Feed
+  const [activities, setActivities] = useState<ClubActivity[]>(() =>
+    loadFromStorage<ClubActivity[]>(STORAGE_KEYS.ACTIVITIES, [])
+  );
+
   // Save changes to localStorage whenever state updates
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(badges));
@@ -141,6 +149,10 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.EVICTIONS, JSON.stringify(evictionRequests));
   }, [evictionRequests]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ACTIVITIES, JSON.stringify(activities));
+  }, [activities]);
 
   // Modals state
   const [inspectingBadge, setInspectingBadge] = useState<Badge | null>(null);
@@ -214,14 +226,27 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   
   const handleGoogleSignIn = async () => {
     await signInWithGoogle(users, (newUser) => {
+      let isNew = false;
       setUsers(prev => {
         const exists = prev.some(u => u.uid === newUser.uid);
+        if (!exists) isNew = true;
         if (exists) return prev.map(u => u.uid === newUser.uid ? newUser : u);
         return [newUser, ...prev];
       });
       setCurrentUserId(newUser.uid);
       sounds.playFanfare();
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+
+      if (isNew) {
+        clubStore.recordActivity({
+          type: 'user_joined',
+          timestamp: Date.now(),
+          actorUserId: newUser.uid,
+          actorDisplayName: newUser.displayName,
+          actorAvatarUrl: newUser.avatarUrl,
+          details: { summary: 'Joined Safe Climbing Club via Google' }
+        });
+      }
     });
   };
 
@@ -242,7 +267,17 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     // 2. Upload and persist in Firestore cb_users
     await clubStore.saveUser(newUser);
 
-    // 3. Switch active user if requested
+    // 3. Emit user_joined activity
+    clubStore.recordActivity({
+      type: 'user_joined',
+      timestamp: Date.now(),
+      actorUserId: newUser.uid,
+      actorDisplayName: newUser.displayName,
+      actorAvatarUrl: newUser.avatarUrl,
+      details: { summary: 'Joined Safe Climbing Club' }
+    });
+
+    // 4. Switch active user if requested
     if (switchToUser) {
       setCurrentUserId(newUser.uid);
       sounds.playFanfare();
@@ -252,6 +287,8 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
   };
 
   const handleSaveBadge = async (badge: Badge) => {
+    const existing = badges.find(b => b.id === badge.id);
+
     // 1. Update React state immediately by matching UUID
     setBadges(prev => {
       const exists = prev.some(b => b.id === badge.id);
@@ -265,6 +302,34 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     const success = await clubStore.saveBadge(badge);
     if (success) {
       console.log(`[App] Badge update persisted to Firestore DB: ${badge.title} (${badge.id})`);
+    }
+
+    // 3. Emit activity event
+    if (existing) {
+      const summary = describeBadgeChanges(existing, badge);
+      clubStore.recordActivity({
+        type: 'badge_updated',
+        timestamp: Date.now(),
+        actorUserId: currentUser?.uid,
+        actorDisplayName: currentUser?.displayName || 'Committee',
+        targetBadgeId: badge.id,
+        targetBadgeTitle: badge.title,
+        targetBadgeIcon: badge.iconName,
+        targetBadgeImageUrl: badge.imageUrl,
+        details: { summary, category: badge.category }
+      });
+    } else {
+      clubStore.recordActivity({
+        type: 'badge_created',
+        timestamp: Date.now(),
+        actorUserId: currentUser?.uid,
+        actorDisplayName: currentUser?.displayName || 'Committee',
+        targetBadgeId: badge.id,
+        targetBadgeTitle: badge.title,
+        targetBadgeIcon: badge.iconName,
+        targetBadgeImageUrl: badge.imageUrl,
+        details: { summary: `Released with ${badge.requirements.length} requirement(s)`, category: badge.category }
+      });
     }
   };
 
@@ -432,6 +497,29 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     if (event === 'awarded') {
       sounds.playFanfare();
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+
+      // Emit badge_awarded activity
+      clubStore.recordActivity({
+        type: 'badge_awarded',
+        timestamp: Date.now(),
+        actorUserId: currentUser.uid,
+        actorDisplayName: currentUser.displayName,
+        actorAvatarUrl: currentUser.avatarUrl,
+        targetBadgeId: targetBadge.id,
+        targetBadgeTitle: targetBadge.title,
+        targetBadgeIcon: targetBadge.iconName,
+        targetBadgeImageUrl: targetBadge.imageUrl,
+        details: {
+          awardCount: updatedBadgeProg.awardedCount,
+          upgradeTier: updatedBadgeProg.upgradeTier,
+          category: targetBadge.category,
+          summary: updatedBadgeProg.upgradeTier && updatedBadgeProg.upgradeTier > 1
+            ? `Achieved Tier ${updatedBadgeProg.upgradeTier} border!`
+            : updatedBadgeProg.awardedCount && updatedBadgeProg.awardedCount > 1
+              ? `Earned x${updatedBadgeProg.awardedCount} multiplier!`
+              : 'Earned and unlocked badge!'
+        }
+      });
     }
 
     // 2. Persist to Cloud Firestore in named database
@@ -503,6 +591,25 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
             ...curr,
             [nom.badgeId]: updatedNomineeProg
           }));
+
+          const nominee = users.find(u => u.uid === nom.nomineeUserId);
+          clubStore.recordActivity({
+            type: 'badge_awarded',
+            timestamp: Date.now(),
+            actorUserId: nom.nomineeUserId,
+            actorDisplayName: nom.nomineeDisplayName,
+            actorAvatarUrl: nominee?.avatarUrl,
+            targetBadgeId: targetBadge.id,
+            targetBadgeTitle: targetBadge.title,
+            targetBadgeIcon: targetBadge.iconName,
+            targetBadgeImageUrl: targetBadge.imageUrl,
+            details: {
+              awardCount: updatedNomineeProg.awardedCount,
+              upgradeTier: updatedNomineeProg.upgradeTier,
+              category: targetBadge.category,
+              summary: 'Awarded by Committee vote from peer nomination!'
+            }
+          });
         }
       }
 
@@ -589,6 +696,19 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       }
     );
 
+    const unsubActs = clubStore.subscribeActivities(
+      (cloudActs) => {
+        if (!activeSubscriptions) return;
+        if (cloudActs.length === 0) {
+          const backfilled = generateHistoricalActivities(badges, users, userProgress);
+          setActivities(backfilled);
+          backfilled.slice(0, 15).forEach(a => clubStore.recordActivity(a));
+        } else {
+          setActivities(cloudActs);
+        }
+      }
+    );
+
     return () => {
       activeSubscriptions = false;
       unsubBadges();
@@ -596,6 +716,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       unsubUsers();
       unsubNoms();
       unsubEvict();
+      unsubActs();
     };
   }, []);
 
@@ -727,6 +848,16 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
               </button>
             </div>
           )
+        )}
+
+        {/* Tab 3: Activity & News Feed */}
+        {activeTab === 'feed' && (
+          <ActivityFeed
+            activities={activities}
+            badges={badges}
+            upgradeTiers={upgradeTiers}
+            onSelectBadge={b => setInspectingBadge(b)}
+          />
         )}
 
         {/* Tab 2: Reviews & Votes */}
