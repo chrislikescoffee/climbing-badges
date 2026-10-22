@@ -467,16 +467,20 @@ export function subscribeToActivities(
     const colRef = collection(db, COLLECTIONS.ACTIVITIES);
     const q = query(colRef, orderBy('timestamp', 'desc'), limit(100));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    let active = true;
+    let fallbackUnsub: (() => void) | null = null;
+
+    const primaryUnsub = onSnapshot(q, (snapshot) => {
       const list: ClubActivity[] = [];
       snapshot.forEach(docSnap => {
         list.push(docSnap.data() as ClubActivity);
       });
       onData(list);
     }, (error) => {
-      // Fallback without ordering in case index is pending
+      console.warn('[Firestore] subscribeToActivities query note:', error.message);
+      if (!active) return;
       try {
-        const fallbackUnsub = onSnapshot(colRef, (snapshot) => {
+        fallbackUnsub = onSnapshot(colRef, (snapshot) => {
           const list: ClubActivity[] = [];
           snapshot.forEach(docSnap => {
             list.push(docSnap.data() as ClubActivity);
@@ -484,15 +488,19 @@ export function subscribeToActivities(
           list.sort((a, b) => b.timestamp - a.timestamp);
           onData(list);
         }, (err) => {
+          console.warn('[Firestore] subscribeToActivities fallback note (check Firestore rules for cb_activities):', err.message);
           if (onError) onError(err);
         });
-        return fallbackUnsub;
-      } catch (fallbackErr) {
-        if (onError) onError(error);
+      } catch (fallbackErr: any) {
+        if (onError) onError(fallbackErr);
       }
     });
 
-    return unsubscribe;
+    return () => {
+      active = false;
+      primaryUnsub();
+      if (fallbackUnsub) fallbackUnsub();
+    };
   } catch (e: any) {
     return () => {};
   }
@@ -512,10 +520,10 @@ export async function cloudSaveActivity(
       id
     };
     await setDoc(doc(db, COLLECTIONS.ACTIVITIES, id), sanitizeForFirestore(fullActivity), { merge: true });
-    console.log(`[Firestore] Recorded activity: ${fullActivity.type}`);
+    console.log(`[Firestore] Recorded activity: ${fullActivity.type} (${id})`);
     return true;
-  } catch (e) {
-    console.error('[Firestore] Error saving activity:', e);
+  } catch (e: any) {
+    console.warn('[Firestore] Note: Could not persist activity to cloud database (check Firestore rules for cb_activities):', e.message);
     return false;
   }
 }

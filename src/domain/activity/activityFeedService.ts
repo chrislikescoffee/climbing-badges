@@ -125,3 +125,20 @@ export function formatTimeAgo(timestamp: number): string {
   const date = new Date(timestamp);
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+/**
+ * Merges two lists of activities, deduplicating by unique ID and sorting newest first.
+ */
+export function mergeAndDeduplicateActivities(
+  existing: ClubActivity[],
+  incoming: ClubActivity[]
+): ClubActivity[] {
+  const map = new Map<string, ClubActivity>();
+  for (const act of existing) {
+    if (act.id) map.set(act.id, act);
+  }
+  for (const act of incoming) {
+    if (act.id) map.set(act.id, act);
+  }
+  return Array.from(map.values()).sort((a, b) => b.timestamp - a.timestamp);
+}

@@ -21,7 +21,11 @@ import { UserManagement } from './components/management/UserManagement';
 import { UpgradeTierManagement } from './components/management/UpgradeTierManagement';
 import { ProfileView } from './components/profile/ProfileView';
 import { ActivityFeed } from './components/feed/ActivityFeed';
-import { describeBadgeChanges, generateHistoricalActivities } from './domain/activity/activityFeedService';
+import { 
+  describeBadgeChanges, 
+  generateHistoricalActivities,
+  mergeAndDeduplicateActivities 
+} from './domain/activity/activityFeedService';
 
 import { INITIAL_BADGES, MOCK_USERS, INITIAL_EVICTION_REQUESTS, INITIAL_UPGRADE_TIERS } from './services/mockData';
 import type { Badge, UserBadgeProgress, UserProfile, Nomination, CommitteeEvictionRequest, UpgradeTier, ClubActivity } from './types';
@@ -222,7 +226,17 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     alert(`Successfully synced ${count} badges, ${users.length} user accounts, and all progress to Firebase Database!`);
   };
 
-  
+  const recordAndDispatchActivity = (rawActivity: Omit<ClubActivity, 'id'>) => {
+    const id = 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    const fullActivity: ClubActivity = {
+      ...rawActivity,
+      id
+    };
+    // 1. Optimistic UI update: display immediately and persist to local state/storage
+    setActivities(prev => mergeAndDeduplicateActivities(prev, [fullActivity]));
+    // 2. Persist to cloud database
+    clubStore.recordActivity(fullActivity);
+  };
   
   const handleGoogleSignIn = async () => {
     await signInWithGoogle(users, (newUser) => {
@@ -238,7 +252,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
 
       if (isNew) {
-        clubStore.recordActivity({
+        recordAndDispatchActivity({
           type: 'user_joined',
           timestamp: Date.now(),
           actorUserId: newUser.uid,
@@ -267,8 +281,8 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     // 2. Upload and persist in Firestore cb_users
     await clubStore.saveUser(newUser);
 
-    // 3. Emit user_joined activity
-    clubStore.recordActivity({
+    // 3. Emit user_joined activity optimistically and to cloud
+    recordAndDispatchActivity({
       type: 'user_joined',
       timestamp: Date.now(),
       actorUserId: newUser.uid,
@@ -304,10 +318,10 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       console.log(`[App] Badge update persisted to Firestore DB: ${badge.title} (${badge.id})`);
     }
 
-    // 3. Emit activity event
+    // 3. Emit activity event optimistically and to cloud
     if (existing) {
       const summary = describeBadgeChanges(existing, badge);
-      clubStore.recordActivity({
+      recordAndDispatchActivity({
         type: 'badge_updated',
         timestamp: Date.now(),
         actorUserId: currentUser?.uid,
@@ -319,7 +333,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
         details: { summary, category: badge.category }
       });
     } else {
-      clubStore.recordActivity({
+      recordAndDispatchActivity({
         type: 'badge_created',
         timestamp: Date.now(),
         actorUserId: currentUser?.uid,
@@ -498,8 +512,8 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       sounds.playFanfare();
       confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
 
-      // Emit badge_awarded activity
-      clubStore.recordActivity({
+      // Emit badge_awarded activity optimistically and to cloud
+      recordAndDispatchActivity({
         type: 'badge_awarded',
         timestamp: Date.now(),
         actorUserId: currentUser.uid,
@@ -593,7 +607,7 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
           }));
 
           const nominee = users.find(u => u.uid === nom.nomineeUserId);
-          clubStore.recordActivity({
+          recordAndDispatchActivity({
             type: 'badge_awarded',
             timestamp: Date.now(),
             actorUserId: nom.nomineeUserId,
@@ -699,13 +713,23 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
     const unsubActs = clubStore.subscribeActivities(
       (cloudActs) => {
         if (!activeSubscriptions) return;
-        if (cloudActs.length === 0) {
-          const backfilled = generateHistoricalActivities(badges, users, userProgress);
-          setActivities(backfilled);
-          backfilled.slice(0, 15).forEach(a => clubStore.recordActivity(a));
-        } else {
-          setActivities(cloudActs);
-        }
+        setActivities(prev => {
+          if (cloudActs.length === 0 && prev.length === 0) {
+            const backfilled = generateHistoricalActivities(badges, users, userProgress);
+            backfilled.slice(0, 15).forEach(a => clubStore.recordActivity(a));
+            return backfilled;
+          }
+          return mergeAndDeduplicateActivities(prev, cloudActs);
+        });
+      },
+      (err) => {
+        console.warn('[Feed] Operating with local activity cache:', err.message);
+        setActivities(prev => {
+          if (prev.length === 0) {
+            return generateHistoricalActivities(badges, users, userProgress);
+          }
+          return prev;
+        });
       }
     );
 
@@ -719,6 +743,17 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
       unsubActs();
     };
   }, []);
+
+  // Ensure activities are seeded on first load if empty
+  useEffect(() => {
+    if (activities.length === 0 && (badges.length > 0 || users.length > 0)) {
+      const historical = generateHistoricalActivities(badges, users, userProgress);
+      if (historical.length > 0) {
+        setActivities(historical);
+        historical.slice(0, 15).forEach(a => clubStore.recordActivity(a));
+      }
+    }
+  }, [badges.length, users.length]);
 
 
   // Real-time synchronization of active user's badge progress from Cloud Firestore

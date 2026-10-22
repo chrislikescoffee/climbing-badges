@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   describeBadgeChanges,
   generateHistoricalActivities,
-  formatTimeAgo
+  formatTimeAgo,
+  mergeAndDeduplicateActivities
 } from './activityFeedService';
-import type { Badge, UserBadgeProgress, UserProfile } from '../../types';
+import type { Badge, ClubActivity, UserBadgeProgress, UserProfile } from '../../types';
 
 describe('activityFeedService', () => {
   it('describes changes when a badge is modified', () => {
@@ -95,5 +96,23 @@ describe('activityFeedService', () => {
     expect(formatTimeAgo(now - 120000)).toBe('2m ago');
     expect(formatTimeAgo(now - 7200000)).toBe('2h ago');
     expect(formatTimeAgo(now - 86400000)).toBe('Yesterday');
+  });
+
+  it('merges and deduplicates activities while preserving newest-first order', () => {
+    const existing: ClubActivity[] = [
+      { id: 'act_1', type: 'user_joined', timestamp: 1000, actorDisplayName: 'Sam' },
+      { id: 'act_2', type: 'badge_created', timestamp: 2000, targetBadgeTitle: 'Old' }
+    ];
+    const incoming: ClubActivity[] = [
+      { id: 'act_2', type: 'badge_created', timestamp: 2000, targetBadgeTitle: 'Updated' },
+      { id: 'act_3', type: 'badge_awarded', timestamp: 3000, targetBadgeTitle: 'New' }
+    ];
+
+    const merged = mergeAndDeduplicateActivities(existing, incoming);
+    expect(merged).toHaveLength(3);
+    expect(merged[0].id).toBe('act_3');
+    expect(merged[1].id).toBe('act_2');
+    expect(merged[1].targetBadgeTitle).toBe('Updated');
+    expect(merged[2].id).toBe('act_1');
   });
 });
