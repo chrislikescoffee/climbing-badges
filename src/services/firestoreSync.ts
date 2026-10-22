@@ -81,7 +81,11 @@ export function subscribeToBadges(
       if (!snapshot.empty) {
         const list: Badge[] = [];
         snapshot.forEach(docSnap => {
-          list.push(docSnap.data() as Badge);
+          const data = docSnap.data() as Badge;
+          list.push({
+            ...data,
+            requirements: Array.isArray(data.requirements) ? data.requirements : []
+          });
         });
         console.log(`[Firestore] Loaded ${list.length} badges from online database/cache.`);
         onData(list);

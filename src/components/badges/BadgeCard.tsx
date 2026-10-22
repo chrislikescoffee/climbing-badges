@@ -64,9 +64,10 @@ export const BadgeCard: React.FC<BadgeCardProps> = ({
 
   let totalTarget = 0;
   let totalCurrent = 0;
-  badge.requirements.forEach(req => {
-    totalTarget += req.targetCount;
-    totalCurrent += Math.min(req.targetCount, progress?.progress?.[req.id]?.currentCount || 0);
+  const safeRequirements = Array.isArray(badge.requirements) ? badge.requirements : [];
+  safeRequirements.forEach(req => {
+    totalTarget += req.targetCount || 1;
+    totalCurrent += Math.min(req.targetCount || 1, progress?.progress?.[req.id]?.currentCount || 0);
   });
   const progressPercent = totalTarget > 0 ? Math.round((totalCurrent / totalTarget) * 100) : 0;
 

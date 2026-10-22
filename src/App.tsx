@@ -101,9 +101,13 @@ export function App() {
   const currentUser = users.find(u => u.uid === currentUserId) || null;
 
   // 2. Persistent Badges
-  const [badges, setBadges] = useState<Badge[]>(() => 
-    loadFromStorage<Badge[]>(STORAGE_KEYS.BADGES, INITIAL_BADGES)
-  );
+  const [badges, setBadges] = useState<Badge[]>(() => {
+    const rawBadges = loadFromStorage<Badge[]>(STORAGE_KEYS.BADGES, INITIAL_BADGES);
+    return (rawBadges || []).map(b => ({
+      ...b,
+      requirements: Array.isArray(b?.requirements) ? b.requirements : []
+    }));
+  });
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'earnt' | 'not_awarded'>('all');

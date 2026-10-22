@@ -277,7 +277,7 @@ export const BadgeManagement: React.FC<BadgeManagementProps> = ({
               </p>
 
               <div style={{ fontSize: '0.78rem', color: 'var(--text-faint)', marginBottom: 16 }}>
-                <div>• {b.requirements.length} requirement{b.requirements.length !== 1 ? 's' : ''}</div>
+                <div>• {Array.isArray(b.requirements) ? b.requirements.length : 0} requirement{(b.requirements?.length || 0) !== 1 ? 's' : ''}</div>
                 <div>• Approval: {b.approvalMode === 'committee_vote' ? 'Committee Vote' : b.approvalMode === 'single_reviewer' ? 'Single Reviewer' : 'Self Approval'}</div>
                 <div>• Nomination: {b.isNominationOnly ? 'Nominated Only' : b.isNominatable ? 'Self or Nominate' : 'Self-Log Only'}</div>
               </div>

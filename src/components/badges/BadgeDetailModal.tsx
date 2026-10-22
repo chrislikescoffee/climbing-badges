@@ -31,7 +31,8 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
 }) => {
   if (!badge) return null;
 
-  const [activeReqId, setActiveReqId] = useState<string>(badge.requirements[0]?.id || '');
+  const safeRequirements = Array.isArray(badge.requirements) ? badge.requirements : [];
+  const [activeReqId, setActiveReqId] = useState<string>(safeRequirements[0]?.id || '');
   const [countDelta, setCountDelta] = useState<number>(1);
   const [noteText, setNoteText] = useState<string>('');
   
@@ -44,7 +45,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
   const [optionalPreviews, setOptionalPreviews] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const selectedReq = badge.requirements.find(r => r.id === activeReqId);
+  const selectedReq = safeRequirements.find(r => r.id === activeReqId);
   const currentReqProgress = progress?.progress?.[activeReqId];
   const isReqComplete = (currentReqProgress?.currentCount || 0) >= (selectedReq?.targetCount || 1);
 
@@ -198,7 +199,7 @@ export const BadgeDetailModal: React.FC<BadgeDetailModalProps> = ({
             Criteria & Requirements
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {badge.requirements.map(req => {
+            {safeRequirements.map(req => {
               const reqProg = progress?.progress?.[req.id];
               const count = reqProg?.currentCount || 0;
               const isDone = count >= req.targetCount;

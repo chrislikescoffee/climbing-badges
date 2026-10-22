@@ -55,7 +55,8 @@ export function recordEvidence(
   };
 
   const newCount = reqProg.currentCount + submission.countDelta;
-  const targetReq = badge.requirements.find(r => r.id === submission.requirementId);
+  const safeReqs = Array.isArray(badge.requirements) ? badge.requirements : [];
+  const targetReq = safeReqs.find(r => r.id === submission.requirementId);
   const targetCount = targetReq?.targetCount ?? 1;
   const isReqDone = newCount >= targetCount;
 
@@ -87,7 +88,7 @@ export function recordEvidence(
     [submission.requirementId]: updatedReqProg
   };
 
-  const allCompleted = badge.requirements.every(req => {
+  const allCompleted = safeReqs.length > 0 && safeReqs.every(req => {
     const prog = updatedProgressMap[req.id];
     return prog && prog.currentCount >= req.targetCount;
   });
