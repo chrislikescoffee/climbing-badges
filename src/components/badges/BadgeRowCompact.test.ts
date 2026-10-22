@@ -91,4 +91,13 @@ describe('BadgeRowCompact logic and progression calculations', () => {
     expect(showMultiplier).toBe(true);
     expect(count).toBe(4);
   });
+
+  it('selects tagline or falls back to description for subtitle text', () => {
+    const subtitle1 = sampleBadge.tagline || sampleBadge.description;
+    expect(subtitle1).toBe('Climb 5.12 cleanly');
+
+    const badgeWithoutTagline: Badge = { ...sampleBadge, tagline: '' };
+    const subtitle2 = badgeWithoutTagline.tagline || badgeWithoutTagline.description;
+    expect(subtitle2).toBe('Clean redpoint of any recognized 5.12 route.');
+  });
 });

@@ -68,23 +68,6 @@ export const BadgeRowCompact: React.FC<BadgeRowCompactProps> = ({
     }
   };
 
-  const getCategoryTheme = (category: string) => {
-    switch (category) {
-      case 'climbing':
-        return { label: 'Climbing', bg: 'rgba(56, 189, 248, 0.12)', text: '#38bdf8', border: 'rgba(56, 189, 248, 0.3)' };
-      case 'camping':
-        return { label: 'Camping', bg: 'rgba(52, 211, 153, 0.12)', text: '#34d399', border: 'rgba(52, 211, 153, 0.3)' };
-      case 'life_skills':
-        return { label: 'Life Skills', bg: 'rgba(251, 146, 60, 0.12)', text: '#fb923c', border: 'rgba(251, 146, 60, 0.3)' };
-      case 'milestone':
-        return { label: 'Milestone', bg: 'rgba(192, 132, 252, 0.12)', text: '#c084fc', border: 'rgba(192, 132, 252, 0.3)' };
-      default:
-        return { label: category, bg: 'rgba(255, 255, 255, 0.08)', text: 'var(--text-muted)', border: 'var(--border-subtle)' };
-    }
-  };
-
-  const catTheme = getCategoryTheme(badge.category);
-
   // Border & left-accent styling
   const borderLeftAccent = isAwarded && badge.awardType === 'upgradable'
     ? `3px solid ${tierColor}`
@@ -93,6 +76,8 @@ export const BadgeRowCompact: React.FC<BadgeRowCompactProps> = ({
     : isPending
     ? '3px solid var(--amber-campfire)'
     : '3px solid transparent';
+
+  const subtitleText = badge.tagline || badge.description;
 
   return (
     <div
@@ -109,8 +94,8 @@ export const BadgeRowCompact: React.FC<BadgeRowCompactProps> = ({
       style={{
         display: 'flex',
         alignItems: 'center',
-        padding: '10px 16px',
-        gap: 14,
+        padding: '10px 14px',
+        gap: 12,
         cursor: 'pointer',
         borderLeft: borderLeftAccent,
         transition: 'all 0.18s ease',
@@ -150,14 +135,17 @@ export const BadgeRowCompact: React.FC<BadgeRowCompactProps> = ({
         {renderInsignia()}
       </div>
 
-      {/* Main Info: Title, Multiplier, Category Tag */}
-      <div style={{ flex: '1 1 240px', minWidth: 160 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      {/* Main Info: Title, Multiplier, and Tagline (no category chip) */}
+      <div style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ 
             fontWeight: 700, 
-            fontSize: '0.94rem', 
+            fontSize: '0.92rem', 
             color: '#fff',
-            letterSpacing: '-0.01em'
+            letterSpacing: '-0.01em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
             {badge.title}
           </span>
@@ -166,76 +154,78 @@ export const BadgeRowCompact: React.FC<BadgeRowCompactProps> = ({
             <span style={{
               background: 'linear-gradient(135deg, #ffd700, #ff9800)',
               color: '#0f1418',
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               fontWeight: 900,
-              padding: '1px 6px',
+              padding: '1px 5px',
               borderRadius: 'var(--radius-full)',
               boxShadow: '0 0 6px rgba(255, 215, 0, 0.4)',
-              lineHeight: 1.2
+              lineHeight: 1.2,
+              flexShrink: 0
             }}>
               x{count}
             </span>
           )}
-
-          <span style={{
-            fontSize: '0.68rem',
-            padding: '1px 7px',
-            borderRadius: 'var(--radius-full)',
-            background: catTheme.bg,
-            color: catTheme.text,
-            border: `1px solid ${catTheme.border}`,
-            fontWeight: 600
-          }}>
-            {catTheme.label}
-          </span>
         </div>
+
+        {subtitleText && (
+          <div style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            marginTop: 2,
+            lineHeight: 1.3
+          }}>
+            {subtitleText}
+          </div>
+        )}
       </div>
 
       {/* Progress / Status Column */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         flexShrink: 0,
-        minWidth: 160,
         justifyContent: 'flex-end'
       }}>
         {isAwarded ? (
           <span style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 5,
-            fontSize: '0.75rem',
+            gap: 4,
+            fontSize: '0.72rem',
             fontWeight: 700,
             color: badge.awardType === 'upgradable' ? tierColor : 'var(--badge-gold)',
             background: badge.awardType === 'upgradable' ? `${tierColor}18` : 'rgba(255, 215, 0, 0.15)',
             border: badge.awardType === 'upgradable' ? `1px solid ${tierColor}40` : '1px solid rgba(255, 215, 0, 0.3)',
-            padding: '3px 10px',
+            padding: '2px 8px',
             borderRadius: 'var(--radius-full)'
           }}>
-            <CheckCircle2 size={13} />
+            <CheckCircle2 size={12} />
             <span>{badge.awardType === 'upgradable' ? `Tier ${currentTierLevel} Earnt` : 'Earnt'}</span>
           </span>
         ) : isPending ? (
           <span style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 5,
-            fontSize: '0.75rem',
+            gap: 4,
+            fontSize: '0.72rem',
             fontWeight: 700,
             color: 'var(--amber-campfire)',
             background: 'rgba(255, 152, 0, 0.15)',
             border: '1px solid rgba(255, 152, 0, 0.3)',
-            padding: '3px 10px',
+            padding: '2px 8px',
             borderRadius: 'var(--radius-full)'
           }}>
-            <Clock size={13} />
+            <Clock size={12} />
             <span>Under Review</span>
           </span>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 140 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{
-              flex: 1,
+              width: 50,
               height: 5,
               background: 'rgba(255, 255, 255, 0.08)',
               borderRadius: 3,
@@ -250,18 +240,18 @@ export const BadgeRowCompact: React.FC<BadgeRowCompactProps> = ({
               }} />
             </div>
             <span style={{
-              fontSize: '0.74rem',
+              fontSize: '0.72rem',
               color: isInProgress ? 'var(--emerald-moss)' : 'var(--text-muted)',
               fontWeight: 600,
-              minWidth: 55,
-              textAlign: 'right'
+              textAlign: 'right',
+              whiteSpace: 'nowrap'
             }}>
               {totalCurrent}/{totalTarget} reqs
             </span>
           </div>
         )}
 
-        <ChevronRight size={16} color="var(--text-muted)" style={{ opacity: 0.6 }} />
+        <ChevronRight size={15} color="var(--text-muted)" style={{ opacity: 0.5, flexShrink: 0 }} />
       </div>
     </div>
   );
