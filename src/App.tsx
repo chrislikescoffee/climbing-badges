@@ -10,6 +10,7 @@ import confetti from 'canvas-confetti';
 import { Navbar } from './components/common/Navbar';
 import type { TabKey } from './components/common/Navbar';
 import { BadgeCard } from './components/badges/BadgeCard';
+import { BadgeRowCompact } from './components/badges/BadgeRowCompact';
 import { MyBadges } from './components/badges/MyBadges';
 import { BadgeFilters } from './components/badges/BadgeFilters';
 import { BadgeDetailModal } from './components/badges/BadgeDetailModal';
@@ -45,7 +46,8 @@ const STORAGE_KEYS = {
   NOMINATIONS: 'climbing_nominations',
   EVICTIONS: 'climbing_evictions',
   TIERS: 'climbing_upgrade_tiers',
-  ACTIVITIES: 'climbing_activities_list'
+  ACTIVITIES: 'climbing_activities_list',
+  VIEW_MODE: 'climbing_badge_view_mode'
 };
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -116,6 +118,26 @@ export function App() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'earnt' | 'not_awarded'>('all');
+  const [badgeViewMode, setBadgeViewMode] = useState<'compact' | 'expanded'>(() => 
+    loadFromStorage<'compact' | 'expanded'>(STORAGE_KEYS.VIEW_MODE, 'compact')
+  );
+
+  // Sync preference if current user has saved preference in their profile
+  useEffect(() => {
+    if (currentUser?.badgeViewMode && currentUser.badgeViewMode !== badgeViewMode) {
+      setBadgeViewMode(currentUser.badgeViewMode);
+    }
+  }, [currentUser?.uid, currentUser?.badgeViewMode, badgeViewMode]);
+
+  const handleToggleViewMode = (mode: 'compact' | 'expanded') => {
+    setBadgeViewMode(mode);
+    localStorage.setItem(STORAGE_KEYS.VIEW_MODE, JSON.stringify(mode));
+    if (currentUser) {
+      const updatedUser: UserProfile = { ...currentUser, badgeViewMode: mode };
+      setUsers(prev => prev.map(u => u.uid === currentUser.uid ? updatedUser : u));
+      clubStore.saveUser(updatedUser).catch(console.error);
+    }
+  };
 
   // 3. Persistent Upgrade Tiers
   const [upgradeTiers, setUpgradeTiers] = useState<UpgradeTier[]>(() => 
@@ -904,31 +926,54 @@ loadFromStorage<Nomination[]>(STORAGE_KEYS.NOMINATIONS, [])
               earntBadgesCount={earntBadgesCount}
               notAwardedBadgesCount={notAwardedBadgesCount}
               filteredCount={filteredBadges.length}
+              viewMode={badgeViewMode}
+              onToggleViewMode={handleToggleViewMode}
             />
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: 20
-            }}>
-              {filteredBadges.map(badge => {
-                const prog = userProgress[badge.id];
-                const awarded = currentUser ? users.filter(u => u.uid === currentUser.uid) : [];
+            {badgeViewMode === 'compact' ? (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8
+              }}>
+                {filteredBadges.map(badge => {
+                  const prog = userProgress[badge.id];
+                  return (
+                    <BadgeRowCompact
+                      key={badge.id}
+                      badge={badge}
+                      progress={prog}
+                      upgradeTiers={upgradeTiers}
+                      onOpenDetails={b => setInspectingBadge(b)}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gap: 20
+              }}>
+                {filteredBadges.map(badge => {
+                  const prog = userProgress[badge.id];
+                  const awarded = currentUser ? users.filter(u => u.uid === currentUser.uid) : [];
 
-                return (
-                  <BadgeCard
-                    key={badge.id}
-                    badge={badge}
-                    progress={prog}
-                    awardedUsers={prog?.status === 'awarded' ? awarded : []}
-                    upgradeTiers={upgradeTiers}
-                    onOpenDetails={b => setInspectingBadge(b)}
-                    onNominate={b => setNominatingBadge(b)}
-                    onShare={b => setSharingBadge(b)}
-                  />
-                );
-              })}
-            </div>
+                  return (
+                    <BadgeCard
+                      key={badge.id}
+                      badge={badge}
+                      progress={prog}
+                      awardedUsers={prog?.status === 'awarded' ? awarded : []}
+                      upgradeTiers={upgradeTiers}
+                      onOpenDetails={b => setInspectingBadge(b)}
+                      onNominate={b => setNominatingBadge(b)}
+                      onShare={b => setSharingBadge(b)}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

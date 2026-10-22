@@ -313,6 +313,16 @@ export async function cloudSaveUser(user: UserProfile): Promise<void> {
   }
 }
 
+export async function cloudUpdateUserPreference(userId: string, data: Partial<UserProfile>): Promise<void> {
+  if (!isFirebaseConfigured) return;
+  try {
+    await setDoc(doc(db, COLLECTIONS.USERS, userId), sanitizeForFirestore(data), { merge: true });
+    console.log(`[Firestore] Updated preferences for user ${userId}:`, data);
+  } catch (e) {
+    console.error('[Firestore] Error updating user preference:', e);
+  }
+}
+
 /**
  * Nominations listener
  */

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, ChevronDown, ChevronUp, RotateCcw, Check } from 'lucide-react';
+import { Filter, ChevronDown, ChevronUp, RotateCcw, Check, LayoutGrid, LayoutList } from 'lucide-react';
 
 interface BadgeFiltersProps {
   selectedCategory: string;
@@ -10,6 +10,8 @@ interface BadgeFiltersProps {
   earntBadgesCount: number;
   notAwardedBadgesCount: number;
   filteredCount: number;
+  viewMode?: 'compact' | 'expanded';
+  onToggleViewMode?: (mode: 'compact' | 'expanded') => void;
 }
 
 export const BadgeFilters: React.FC<BadgeFiltersProps> = ({
@@ -20,7 +22,9 @@ export const BadgeFilters: React.FC<BadgeFiltersProps> = ({
   totalBadgesCount,
   earntBadgesCount,
   notAwardedBadgesCount,
-  filteredCount
+  filteredCount,
+  viewMode = 'compact',
+  onToggleViewMode
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -138,8 +142,65 @@ export const BadgeFilters: React.FC<BadgeFiltersProps> = ({
           </div>
         </div>
 
-        {/* Right side: Badge Count + Expand Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Right side: View Mode Toggle, Badge Count + Expand Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {onToggleViewMode && (
+            <div 
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                background: 'rgba(0, 0, 0, 0.35)',
+                padding: 2,
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-subtle)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => onToggleViewMode('compact')}
+                title="Compact list view"
+                aria-label="Compact list view"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px 7px',
+                  borderRadius: 4,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: viewMode === 'compact' ? 'rgba(255, 152, 0, 0.2)' : 'transparent',
+                  color: viewMode === 'compact' ? 'var(--amber-campfire)' : 'var(--text-muted)',
+                  boxShadow: viewMode === 'compact' ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <LayoutList size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleViewMode('expanded')}
+                title="Expanded cards view"
+                aria-label="Expanded cards view"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px 7px',
+                  borderRadius: 4,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: viewMode === 'expanded' ? 'rgba(255, 152, 0, 0.2)' : 'transparent',
+                  color: viewMode === 'expanded' ? 'var(--amber-campfire)' : 'var(--text-muted)',
+                  boxShadow: viewMode === 'expanded' ? '0 1px 3px rgba(0,0,0,0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <LayoutGrid size={14} />
+              </button>
+            </div>
+          )}
+
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             Showing <strong>{filteredCount}</strong> of {totalBadgesCount} badges
           </span>

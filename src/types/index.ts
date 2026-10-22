@@ -9,6 +9,7 @@ export interface UserProfile {
   role: UserRole;
   status: UserStatus;
   createdAt: number;
+  badgeViewMode?: 'compact' | 'expanded';
 }
 
 export type EvidenceType = 'checkbox' | 'text' | 'photo_mandatory' | 'photo_and_text';
